@@ -58,7 +58,7 @@ export function GatePage() {
     const nextDecision: Decision = Number(amount) <= 5 && known ? "ALLOW" : "DENY";
     window.setTimeout(() => {
       setDecision(nextDecision);
-      const receipt: Receipt = { id: `prf_${Math.random().toString(36).slice(2, 8).toUpperCase()}`, decision: nextDecision, amount: Number(amount), recipient, createdAt: "Just now", latency: nextDecision === "ALLOW" ? 716 : 842, cost: nextDecision === "ALLOW" ? .0028 : .0031, shadow: nextDecision === "ALLOW" ? "PASS" : "FAIL", tx: nextDecision === "ALLOW" ? `0x${Math.random().toString(16).slice(2).padEnd(32, "8")}` : undefined };
+      const receipt: Receipt = { id: `prf_${Math.random().toString(36).slice(2, 8).toUpperCase()}`, decision: nextDecision, amount: Number(amount), recipient, createdAt: "Just now", latency: nextDecision === "ALLOW" ? 716 : 842, cost: nextDecision === "ALLOW" ? .0028 : .0031, shadow: nextDecision === "ALLOW" ? "PASS" : "FAIL", ...(nextDecision === "ALLOW" ? { tx: `0x${Math.random().toString(16).slice(2).padEnd(32, "8")}` } : {}) };
       addReceipt(receipt); setPhase("result");
     }, 1350);
   };
