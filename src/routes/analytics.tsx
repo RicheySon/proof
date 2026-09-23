@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { AnalyticsPage } from "@/components/proof-pages";
+export const Route = createFileRoute("/analytics")({ head: () => ({ meta: [{ title: "Policy Analytics — PROOF" }, { name: "description", content: "Track evaluated spend, blocked value, decision rates, and latency." }, { property: "og:title", content: "Policy Analytics — PROOF" }, { property: "og:description", content: "See how PROOF controls agent spend." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: AnalyticsPage });
