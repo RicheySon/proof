@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:gate": "tsx scripts/test-code-gate.ts",
+    "smoke:serv": "tsx --env-file=.env scripts/smoke-serv.ts",
     "typecheck": "tsc --noEmit"
   },
   "overrides": {

@@ -41,3 +41,26 @@ See KEYS_STATUS.md — endpoints return CONFIG_REQUIRED (no mocks).
 - Attempted Vercel MCP `mcp_auth` → **timed out**. User must approve Vercel MCP in Cursor, then re-ask to wire env/deploy.
 - Added [`KEYS_SETUP.md`](KEYS_SETUP.md) with ordered steps + official links for SERV, CDP, Vercel, demo script.
 
+## 2026-09-27 — Keys wired + CDP flow documented
+
+### Operator-supplied keys (values only in gitignored `.env`, never committed)
+- SERV → live `/v1/models` + multipath chat completions OK
+- AgentRouter → direct WAF; Tor `socks5h://127.0.0.1:9050` + stainless headers → `deepseek-v4-flash` OK
+- TinyFish → wallet + search HTTP 200
+- Tavily → search HTTP 200
+- CDP → still operator action; full portal flow in [`CDP_SETUP.md`](CDP_SETUP.md)
+
+### Docs added/updated
+- [`CDP_SETUP.md`](CDP_SETUP.md) — click-by-click Secret API Key, Wallet Secret, EVM account, Base Sepolia ETH+USDC faucet
+- [`AGENTROUTER_SETUP.md`](AGENTROUTER_SETUP.md) — Tor path, headers, Vercel relay note (AgentRouter ≠ SERV)
+- `.env.example` — optional TinyFish / Tavily / AgentRouter vars
+- `scripts/smoke-serv.ts` — live DENY + review smoke
+
+### Still blocked for full ALLOW+tx demo
+Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
+
+### Live SERV smoke (`npm run smoke:serv`)
+- DENY on $50 over-cap → OK
+- ALLOW on $2 allowlisted → OK (SERV only; transfer still needs CDP)
+- `/review` structured risks → OK
+- Fixed SERV client: policy in user JSON, strict json_schema `required` includes all properties, content_filter/refusal fail-closed

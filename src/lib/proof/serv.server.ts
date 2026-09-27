@@ -12,32 +12,118 @@ export type ServEvaluateResult = {
   rawContent: string;
 };
 
-function buildSystemPrompt(policy: Policy): string {
-  return [
-    "You are PROOF, a fail-closed spend policy judge for agent wallets.",
-    "Decide ALLOW or DENY for a proposed transfer.",
-    "Non-negotiable constraints:",
-    `- Never ALLOW amount above ${policy.maxAmountUsd} USD.`,
-    `- Never ALLOW a recipient unless it matches the allowlist: ${policy.allowlist.join(", ")}.`,
-    policy.abstainOnUncertainty
-      ? "- If uncertain about the recipient or amount, DENY (abstain)."
-      : "- If uncertain, still prefer DENY over ALLOW.",
-    "Return only structured JSON matching the schema. Do not authorize chain side effects.",
-    `Prompt version: ${policy.promptVersion}.`,
-  ].join("\n");
-}
+const SYSTEM_PROMPT =
+  "Decide ALLOW or DENY for a wallet transfer using the policy in the user JSON. " +
+  "DENY when amount exceeds maxAmountUsd or recipient is not allowlisted. " +
+  "Prefer DENY when unsure. Never authorize chain side effects. " +
+  "Reply with structured JSON only.";
 
 function shadowHint(policy: Policy): string {
   return [
-    `Decision must be ALLOW or DENY.`,
-    `DENY if amount > ${policy.maxAmountUsd}.`,
-    `DENY if recipient is not in allowlist [${policy.allowlist.join(", ")}].`,
-    `Include a clear reason string.`,
-  ].join(" ");
+    "decision must be ALLOW or DENY with a concrete reason string",
+    `DENY when amountUsd > ${policy.maxAmountUsd}`,
+    "DENY when recipient is not on policy.allowlist",
+  ].join(". ");
+}
+
+function servTools(policy: Policy) {
+  return [
+    { type: "function" as const, function: { name: "serv_prompt_guard" } },
+    {
+      type: "function" as const,
+      function: {
+        name: "serv_shadow_agent",
+        description: "Enable SERV shadow-agent validation.",
+        parameters: {
+          type: "object",
+          properties: {
+            hint: {
+              type: "string",
+              default: shadowHint(policy),
+            },
+            max_iterations: { type: "integer", default: 3 },
+          },
+        },
+      },
+    },
+  ];
+}
+
+/** OpenAI strict json_schema requires every property key in `required`. */
+const SPEND_DECISION_FORMAT = {
+  type: "json_schema" as const,
+  json_schema: {
+    name: "proof_spend_decision",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["decision", "reason", "ruleHint", "confidence"],
+      properties: {
+        decision: { type: "string", enum: ["ALLOW", "DENY"] },
+        reason: { type: "string" },
+        ruleHint: { type: "string" },
+        confidence: { type: "number" },
+      },
+    },
+  },
+};
+
+const REVIEW_FORMAT = {
+  type: "json_schema" as const,
+  json_schema: {
+    name: "proof_policy_review",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["summary", "risks", "nextSteps"],
+      properties: {
+        summary: { type: "string" },
+        risks: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["title", "severity", "evidenceGap", "recommendation"],
+            properties: {
+              title: { type: "string" },
+              severity: {
+                type: "string",
+                enum: ["low", "medium", "high", "critical"],
+              },
+              evidenceGap: { type: "string" },
+              recommendation: { type: "string" },
+            },
+          },
+        },
+        nextSteps: { type: "array", items: { type: "string" } },
+      },
+    },
+  },
+};
+
+function extractContent(completion: OpenAI.Chat.Completions.ChatCompletion): string {
+  const choice = completion.choices[0];
+  const content = choice?.message?.content;
+  const refusal = choice?.message?.refusal;
+  if (refusal) {
+    throw new ProofConfigError(`SERV refused output (content filter): ${refusal}`);
+  }
+  if (choice?.finish_reason === "content_filter") {
+    throw new ProofConfigError(
+      `SERV content_filter blocked output: ${String(content ?? "").slice(0, 200)}`,
+    );
+  }
+  if (!content) {
+    throw new ProofConfigError("SERV returned empty content (fail-closed).");
+  }
+  return content;
 }
 
 /**
  * Live SERV Reasoning call. No mock path.
+ * Uses Multipath model + serv_prompt_guard + serv_shadow_agent.
  */
 export async function evaluateWithServ(
   input: EvaluateInput,
@@ -51,57 +137,30 @@ export async function evaluateWithServ(
   const completion = await client.chat.completions.create({
     model: servModel,
     messages: [
-      { role: "system", content: buildSystemPrompt(policy) },
+      { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
         content: JSON.stringify({
-          intent: input.intent,
+          policy: {
+            maxAmountUsd: policy.maxAmountUsd,
+            allowlist: policy.allowlist,
+            abstainOnUncertainty: policy.abstainOnUncertainty,
+            promptVersion: policy.promptVersion,
+          },
           amountUsd: input.amountUsd,
           recipient: input.recipient,
+          intent: input.intent,
           idempotencyKey: input.idempotencyKey,
           network: "base-sepolia",
         }),
       },
     ],
-    tools: [
-      { type: "function", function: { name: "serv_prompt_guard" } },
-      {
-        type: "function",
-        function: {
-          name: "serv_shadow_agent",
-          description: "Validate spend decision against policy caps and allowlist.",
-          parameters: {
-            type: "object",
-            properties: {
-              hint: { type: "string", default: shadowHint(policy) },
-              max_iterations: { type: "integer", default: 3 },
-            },
-          },
-        },
-      },
-    ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "proof_spend_decision",
-        strict: true,
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          required: ["decision", "reason"],
-          properties: {
-            decision: { type: "string", enum: ["ALLOW", "DENY"] },
-            reason: { type: "string" },
-            ruleHint: { type: "string" },
-            confidence: { type: "number" },
-          },
-        },
-      },
-    },
+    tools: servTools(policy),
+    response_format: SPEND_DECISION_FORMAT,
   });
 
   const latencyMs = Date.now() - started;
-  const content = completion.choices[0]?.message?.content ?? "";
+  const content = extractContent(completion);
   let parsed: ServDecision;
   try {
     parsed = ServDecisionSchema.parse(JSON.parse(content));
@@ -112,7 +171,6 @@ export async function evaluateWithServ(
   }
 
   const usage = completion.usage;
-  // Cost unknown without SERV pricing map — leave null rather than invent.
   return {
     decision: parsed,
     shadow: parsed.decision === "ALLOW" ? "PASS" : "FAIL",
@@ -144,16 +202,24 @@ export async function reviewPolicyWithServ(input: {
   const started = Date.now();
 
   const completion = await client.chat.completions.create({
-    model: servModel.replace("-serv-multipath", "") + "-serv-multipath",
+    model: servModel.includes("-serv-multipath")
+      ? servModel
+      : `${servModel.replace(/-serv-multipath$/, "")}-serv-multipath`,
     messages: [
       {
         role: "system",
         content:
-          "You are a policy-risk analyst for agent spend controls. Identify compliance risks, severity, evidence gaps, and next steps. Never invent live integrations. Output structured JSON only.",
+          "Analyze agent spend-policy risk from the user JSON. " +
+          "Return structured summary, risks (severity + evidenceGap + recommendation), and nextSteps. " +
+          "Do not invent live integrations or credentials. Prefer concrete, falsifiable findings.",
       },
       {
         role: "user",
-        content: JSON.stringify({ policyText: input.policyText, context: input.context }),
+        content: JSON.stringify({
+          task: "policy_risk_review",
+          policyText: input.policyText,
+          context: input.context,
+        }),
       },
     ],
     tools: [
@@ -162,13 +228,14 @@ export async function reviewPolicyWithServ(input: {
         type: "function",
         function: {
           name: "serv_shadow_agent",
+          description: "Enable SERV shadow-agent validation.",
           parameters: {
             type: "object",
             properties: {
               hint: {
                 type: "string",
                 default:
-                  "Each risk must include severity, evidence gap, and a concrete recommendation.",
+                  "JSON must include summary, risks with severity/evidenceGap/recommendation, and nextSteps.",
               },
               max_iterations: { type: "integer", default: 3 },
             },
@@ -176,42 +243,10 @@ export async function reviewPolicyWithServ(input: {
         },
       },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "proof_policy_review",
-        strict: true,
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          required: ["summary", "risks", "nextSteps"],
-          properties: {
-            summary: { type: "string" },
-            risks: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["title", "severity", "evidenceGap", "recommendation"],
-                properties: {
-                  title: { type: "string" },
-                  severity: {
-                    type: "string",
-                    enum: ["low", "medium", "high", "critical"],
-                  },
-                  evidenceGap: { type: "string" },
-                  recommendation: { type: "string" },
-                },
-              },
-            },
-            nextSteps: { type: "array", items: { type: "string" } },
-          },
-        },
-      },
-    },
+    response_format: REVIEW_FORMAT,
   });
 
-  const content = completion.choices[0]?.message?.content ?? "";
+  const content = extractContent(completion);
   const result = JSON.parse(content);
   const usage = completion.usage;
   return {

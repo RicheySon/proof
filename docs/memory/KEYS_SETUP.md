@@ -44,15 +44,17 @@ SERV_BASE_URL=https://inference-api.openserv.ai/v1   # optional
 
 ## 2) Coinbase CDP (required for live Base Sepolia transfer)
 
+**Full click-by-click walkthrough:** [`CDP_SETUP.md`](CDP_SETUP.md)
+
 | Step | Action | Link |
 |------|--------|------|
-| 2.1 | Create CDP account / project | https://portal.cdp.coinbase.com |
-| 2.2 | Create **Secret API Key** → save `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` | https://portal.cdp.coinbase.com (API Keys) |
-| 2.3 | Create / note **Wallet Secret** | CDP portal → wallet / security (Wallet Secret) |
-| 2.4 | Auth model (Bearer JWT + `X-Wallet-Auth`) | https://docs.cdp.coinbase.com/api-reference/v2/authentication |
-| 2.5 | Send tx API (Base Sepolia supported) | https://docs.cdp.coinbase.com/api-reference/v2/rest-api/evm-accounts/send-transaction |
-| 2.6 | Fund a Base Sepolia EVM account with test ETH + USDC (faucet / CDP faucet flows) | https://docs.cdp.coinbase.com · Base Sepolia faucet of your choice |
-| 2.7 | Copy the funded account address → `CDP_EVM_ADDRESS` | must be `0x` + 40 hex chars |
+| 2.1 | Create CDP account / select project (top drop-down) | https://portal.cdp.coinbase.com |
+| 2.2 | **API Keys** → **Secret API Keys** tab → **Create API key** (Ed25519) → save ID + Secret | https://docs.cdp.coinbase.com/api-reference/v2/authentication |
+| 2.3 | **Non-custodial Wallet** → **Security** → **Generate** Wallet Secret (shown once) | same auth doc → Wallet Secret |
+| 2.4 | Create EVM account (`cdp evm accounts create` or portal Accounts) → copy `0x` address | https://docs.cdp.coinbase.com/wallets/quickstart/api-key-auth |
+| 2.5 | **Faucets** → Base Sepolia → claim **ETH** then **USDC** to that address | https://docs.cdp.coinbase.com/faucets/introduction/quickstart |
+| 2.6 | Auth model (Bearer JWT + `X-Wallet-Auth`) | https://docs.cdp.coinbase.com/api-reference/v2/authentication |
+| 2.7 | Send tx API | https://docs.cdp.coinbase.com/api-reference/v2/rest-api/evm-accounts/send-transaction |
 
 **Env to set**
 ```bash
@@ -64,7 +66,6 @@ PROOF_NETWORK=base-sepolia
 ```
 
 **Sanity check:** Integrations shows AgentKit/CDP Connected. ALLOW path can append a real tx hash (still testnet — not financial advice).
-
 ---
 
 ## 3) Vercel hosting (frontend)
@@ -102,10 +103,9 @@ npx vercel --prod
 
 | Key | Get it | Notes |
 |-----|--------|-------|
-| TinyFish | https://agent.tinyfish.ai/api-keys · docs https://docs.tinyfish.ai | Search works; automation needs wallet funds → https://agent.tinyfish.ai/wallet |
-| Tavily | https://tavily.com | Current key hit plan limit |
-| AgentRouter | https://agentrouter.org · console token page | Backup LLM gateway only — **not** a SERV substitute; may hit WAF |
-
+| TinyFish | https://agent.tinyfish.ai/api-keys · docs https://docs.tinyfish.ai | Search + wallet APIs; fund wallet at https://agent.tinyfish.ai/wallet |
+| Tavily | https://app.tavily.com | Research / fact-check |
+| AgentRouter | https://agentrouter.org | Backup LLM only — **not** a SERV substitute. Cloud IPs need Tor — see [`AGENTROUTER_SETUP.md`](AGENTROUTER_SETUP.md) |
 ---
 
 ## 5) Live demo script (&lt; 2 min) — after keys are set
