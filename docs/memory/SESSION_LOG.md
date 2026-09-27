@@ -37,5 +37,7 @@
 ### Keys still missing for live SERV/CDP calls
 See KEYS_STATUS.md — endpoints return CONFIG_REQUIRED (no mocks).
 
-### Transfer implementation note
-Lovable/Nitro targets Cloudflare Workers. Heavy `@coinbase/agentkit` / `@coinbase/cdp-sdk` graphs fail the worker bundle. Live transfer uses CDP REST (`send/transaction`) with jose JWT + viem encoding — AgentKit-track wallet rail, fail-closed.
+### Vercel MCP
+- Attempted Vercel MCP `mcp_auth` → **timed out**. User must approve Vercel MCP in Cursor, then re-ask to wire env/deploy.
+- Added [`KEYS_SETUP.md`](KEYS_SETUP.md) with ordered steps + official links for SERV, CDP, Vercel, demo script.
+

@@ -17,11 +17,15 @@
 - [ ] Build/lint/test clean
 
 ## Submit (official)
-- [ ] console.openserv.ai org **data collection ON**
+- [ ] Follow [`KEYS_SETUP.md`](KEYS_SETUP.md) (SERV + CDP + SESSION_SECRET + Vercel)
+- [ ] console.openserv.ai org **data collection ON** — https://console.openserv.ai/settings/organization
 - [ ] Public X post: name, concept, images, github/demo, tag **@openservai**
-- [ ] Fill official form after the post
+- [ ] Fill official form after the post — start from https://www.openserv.ai/hackathon
 - [ ] Deadline: **28 Sep 2026 00:00 UTC**
 
 ## Pitch order
 Pain → deny on camera → why SERV → AgentKit live tx → receipt metrics → who pays  
 Never: AI portfolio / AXIS / POCKET clone
+
+## Live demo order
+See section 5 in [`KEYS_SETUP.md`](KEYS_SETUP.md).
