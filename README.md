@@ -169,6 +169,8 @@ Highlights worth judging on:
 - **AgentKit SDK killed the worker** — jose + viem REST rail.
 - **SERV content_filter** — policy moved into user JSON; refusals fail closed.
 - **Shared agent tenant collision** — BYOK agent key hashes to an isolated workspace.
+- **TRANSFER_FAILED burned retries** — failed/missing CDP no longer locks the idempotency key.
+- **Cold start wiped BYOK** — sealed keys mirrored in signed `proof_byok_v1` cookie.
 
 ---
 

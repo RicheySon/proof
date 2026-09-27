@@ -9,8 +9,10 @@ import {
   type TenantByokSealed,
 } from "./secrets.server";
 import { DEFAULT_POLICY, type Policy, type Receipt } from "./types";
+import { shouldBindIdempotency } from "./idempotency";
 
 const SESSION_COOKIE = "proof_session";
+const BYOK_COOKIE = "proof_byok_v1";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 type TenantSession = {
@@ -90,9 +92,66 @@ function newTenant(sessionId: string): TenantData {
   };
 }
 
+function packByokCookie(byok: TenantByokSealed, secret: string): string | null {
+  const json = JSON.stringify(byok);
+  // Browser cookie practical limit ~4KB; leave headroom for signing.
+  if (json.length > 3200) return null;
+  const body = Buffer.from(json, "utf8").toString("base64url");
+  const sig = createHmac("sha256", secret).update(`byok:${body}`).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function unpackByokCookie(raw: string | undefined, secret: string): TenantByokSealed | null {
+  if (!raw) return null;
+  const [body, sig] = raw.split(".");
+  if (!body || !sig) return null;
+  const expected = createHmac("sha256", secret).update(`byok:${body}`).digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as TenantByokSealed;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistByokCookie(data: TenantData): void {
+  const secret = getSessionSecret();
+  const packed = packByokCookie(data.byok, secret);
+  if (!packed) {
+    // Too large — keep memory only; honesty path.
+    deleteCookie(BYOK_COOKIE, { path: "/" });
+    return;
+  }
+  setCookie(BYOK_COOKIE, packed, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: cookieSecure(),
+    path: "/",
+    maxAge: COOKIE_MAX_AGE,
+  });
+}
+
+function restoreByokFromCookie(data: TenantData, secret: string): void {
+  const restored = unpackByokCookie(getCookie(BYOK_COOKIE), secret);
+  if (!restored) return;
+  const empty =
+    !data.byok.servApiKey &&
+    !data.byok.cdpApiKeyId &&
+    !data.byok.agentApiKeyHash;
+  if (!empty) return;
+  data.byok = restored;
+  if (restored.agentApiKeyHash) {
+    root().byAgentHash.set(restored.agentApiKeyHash, data.session.sessionId);
+  }
+}
+
 /**
  * Ensures a signed httpOnly session for the current request.
  * Fails closed if SESSION_SECRET is missing (no unsigned cookies, no localStorage).
+ * Sealed BYOK rides in a second signed cookie so cold starts do not wipe connected keys.
  */
 export function ensureTenantSession(): TenantData {
   const secret = getSessionSecret();
@@ -102,11 +161,18 @@ export function ensureTenantSession(): TenantData {
     const data = store.bySession.get(existingId)!;
     data.session.lastSeenAt = new Date().toISOString();
     if (!data.byok) data.byok = {};
+    restoreByokFromCookie(data, secret);
     return data;
   }
 
-  const sessionId = randomBytes(24).toString("base64url");
+  // Cold start: cookie signature valid but memory gone — reuse session id when possible.
+  const sessionId = existingId ?? randomBytes(24).toString("base64url");
   const data = newTenant(sessionId);
+  if (existingId) {
+    data.session.sessionId = existingId;
+    data.session.tenantId = `ten_${existingId.slice(0, 12)}`;
+  }
+  restoreByokFromCookie(data, secret);
   store.bySession.set(sessionId, data);
   setCookie(SESSION_COOKIE, packCookie(sessionId, secret), {
     httpOnly: true,
@@ -129,7 +195,7 @@ export function tryEnsureTenantSession():
   }
 }
 
-/** Wipe workspace: new session cookie, drop prior tenant memory. */
+/** Wipe workspace: new session cookie, drop prior tenant memory + BYOK cookie. */
 export function resetTenantSession(): TenantData {
   const secret = getSessionSecret();
   const store = root();
@@ -142,14 +208,24 @@ export function resetTenantSession(): TenantData {
     store.bySession.delete(existingId);
   }
   deleteCookie(SESSION_COOKIE, { path: "/" });
+  deleteCookie(BYOK_COOKIE, { path: "/" });
   return ensureTenantSession();
 }
 
-export function addReceipt(data: TenantData, receipt: Receipt): Receipt {
+export function addReceipt(
+  data: TenantData,
+  receipt: Receipt,
+  opts?: { bindIdempotency?: boolean },
+): Receipt {
   data.receipts = [receipt, ...data.receipts].slice(0, 500);
-  data.idempotency.set(receipt.idempotencyKey, receipt.id);
+  const bind = opts?.bindIdempotency ?? shouldBindIdempotency(receipt);
+  if (bind) {
+    data.idempotency.set(receipt.idempotencyKey, receipt.id);
+  }
   return receipt;
 }
+
+export { shouldBindIdempotency } from "./idempotency";
 
 export function findReceiptByIdempotency(data: TenantData, key: string): Receipt | undefined {
   const id = data.idempotency.get(key);
@@ -221,10 +297,12 @@ export function saveTenantServKey(data: TenantData, apiKey: string): void {
   const trimmed = apiKey.trim();
   if (trimmed.length < 8) throw new ProofConfigError("SERV API key looks too short.");
   data.byok.servApiKey = sealSecret(trimmed);
+  persistByokCookie(data);
 }
 
 export function clearTenantServKey(data: TenantData): void {
   delete data.byok.servApiKey;
+  persistByokCookie(data);
 }
 
 export function saveTenantCdp(
@@ -247,6 +325,7 @@ export function saveTenantCdp(
   data.byok.cdpApiKeySecret = sealSecret(input.apiKeySecret.trim());
   data.byok.cdpWalletSecret = sealSecret(input.walletSecret.trim());
   data.byok.cdpEvmAddress = sealSecret(address);
+  persistByokCookie(data);
 }
 
 export function clearTenantCdp(data: TenantData): void {
@@ -254,6 +333,7 @@ export function clearTenantCdp(data: TenantData): void {
   delete data.byok.cdpApiKeySecret;
   delete data.byok.cdpWalletSecret;
   delete data.byok.cdpEvmAddress;
+  persistByokCookie(data);
 }
 
 export function saveTenantAgentKey(data: TenantData, plainToken: string): void {
@@ -268,6 +348,7 @@ export function saveTenantAgentKey(data: TenantData, plainToken: string): void {
   const hash = hashToken(trimmed);
   data.byok.agentApiKeyHash = hash;
   store.byAgentHash.set(hash, data.session.sessionId);
+  persistByokCookie(data);
 }
 
 export function clearTenantAgentKey(data: TenantData): void {
@@ -276,6 +357,7 @@ export function clearTenantAgentKey(data: TenantData): void {
     store.byAgentHash.delete(data.byok.agentApiKeyHash);
   }
   delete data.byok.agentApiKeyHash;
+  persistByokCookie(data);
 }
 
 export function resolveServApiKey(data: TenantData): string | null {

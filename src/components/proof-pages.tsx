@@ -1003,6 +1003,7 @@ export function IntegrationsPage() {
   const byok = status?.byok;
   const [servKey, setServKey] = useState("");
   const [agentKey, setAgentKey] = useState("");
+  const [agentReveal, setAgentReveal] = useState<string | null>(null);
   const [cdp, setCdp] = useState({
     apiKeyId: "",
     apiKeySecret: "",
@@ -1204,24 +1205,67 @@ export function IntegrationsPage() {
             {sourceLabel(byok?.agentApi)}
           </span>
           <label className="field byok-field">
-            <span>Agent API key (≥16 chars — generate one you control)</span>
+            <span>Agent API key (≥16 chars)</span>
             <input
-              type="password"
+              type="text"
               autoComplete="off"
               value={agentKey}
-              onChange={(e) => setAgentKey(e.target.value)}
-              placeholder="paste once — we never show it again"
+              onChange={(e) => {
+                setAgentKey(e.target.value);
+                setAgentReveal(null);
+              }}
+              placeholder="generate or paste — shown once after connect"
             />
           </label>
+          {agentReveal && (
+            <div className="byok-curl">
+              <small>Copy now — we will not show this token again.</small>
+              <code>{agentReveal}</code>
+              <pre>{`curl -sS https://proof-smoky.vercel.app/api/v1/evaluate \\
+  -H "Authorization: Bearer ${agentReveal}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"amountUsd":1,"recipient":"0xE2891FC6511652EE73A8B7Acda66e7a3fFA24b3C","intent":"agent payout","idempotencyKey":"agent-${Date.now()}"}'`}</pre>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(agentReveal).then(
+                    () => toast.success("Bearer copied"),
+                    () => toast.error("Clipboard blocked"),
+                  );
+                }}
+              >
+                Copy Bearer
+              </Button>
+            </div>
+          )}
           <div className="byok-actions">
+            <Button
+              variant="secondary"
+              disabled={busy !== null}
+              onClick={() => {
+                const bytes = new Uint8Array(24);
+                crypto.getRandomValues(bytes);
+                const generated = `prf_agent_${Array.from(bytes, (b) =>
+                  b.toString(16).padStart(2, "0"),
+                ).join("")}`;
+                setAgentKey(generated);
+                setAgentReveal(null);
+                toast.message("Generated — click Connect to seal the hash");
+              }}
+            >
+              Generate key
+            </Button>
             <Button
               disabled={busy !== null || agentKey.trim().length < 16}
               onClick={() =>
                 void run("agent", async () => {
-                  const res = await connectAgentKey({ data: { apiKey: agentKey } });
+                  const plain = agentKey.trim();
+                  const res = await connectAgentKey({ data: { apiKey: plain } });
                   if (!res.ok) throw new Error(res.message);
-                  toast.success("Agent key hashed — copy it from your password manager now");
+                  setAgentReveal(plain);
                   setAgentKey("");
+                  toast.success("Agent key hashed — copy the Bearer + curl below");
                 })
               }
             >
@@ -1234,6 +1278,7 @@ export function IntegrationsPage() {
                 void run("agent-clear", async () => {
                   const res = await disconnectAgentKey();
                   if (!res.ok) throw new Error(res.message);
+                  setAgentReveal(null);
                   toast.message("Tenant agent key cleared");
                 })
               }

@@ -143,3 +143,16 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - Settings + Integrations: log out / new workspace
 - Folio README deepened: novelty, API depth, safety/access, flaws
 - `npm run test:stress` (1100 gate checks) + `test:all`
+
+## 2026-09-27 — Idempotency burn + BYOK cookie + agent generate
+
+### Flaws fixed
+
+- `TRANSFER_FAILED` / `CONFIG_REQUIRED` no longer bind idempotency (retry after flaky CDP / missing keys)
+- Cold-start BYOK wipe → sealed keys mirrored in signed `proof_byok_v1` httpOnly cookie
+
+### Shipped
+
+- One-click Generate agent Bearer + copy curl on Integrations
+- `npm run test:idem` + pre-generated receipt id on CDP send
+- Flaws ledger + README updated

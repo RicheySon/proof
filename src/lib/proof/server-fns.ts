@@ -63,7 +63,7 @@ export const getIntegrationStatus = createServerFn({ method: "GET" }).handler(as
     servTools: ["serv_prompt_guard", "serv_shadow_agent"],
     cdpRail: "Bearer JWT + X-Wallet-Auth · CDP REST send/transaction (jose + viem)",
     honesty:
-      "Base Sepolia testnet only. Not financial advice. No unhackable claims. Missing secrets fail closed — no mock transfers. Tenant BYOK keys are AES-GCM sealed server-side and never echoed back. Idempotency is per-instance memory on serverless (honest limit).",
+      "Base Sepolia testnet only. Not financial advice. No unhackable claims. Missing secrets fail closed — no mock transfers. Tenant BYOK keys are AES-GCM sealed and mirrored in a signed httpOnly cookie so cold starts keep your connections. TRANSFER_FAILED / CONFIG_REQUIRED do not burn idempotency (retry OK). Receipt/idempotency maps are still per-instance memory (honest limit).",
   };
 });
 

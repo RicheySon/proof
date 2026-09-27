@@ -401,6 +401,9 @@
 .byok-card .byok-field,.byok-card .byok-cdp-fields,.byok-card .byok-actions{grid-column:1 / -1}
 .byok-cdp-fields{display:grid;gap:10px;margin-top:4px}
 .byok-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.byok-curl{grid-column:1 / -1;display:grid;gap:8px;padding:12px;border-radius:8px;background:var(--muted);font-size:12px}
+.byok-curl code{word-break:break-all;font-weight:650}
+.byok-curl pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.4;opacity:.9}
 .hp-field{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
 .legal-page{min-height:100vh;background:var(--background);color:var(--foreground)}
 .legal-page__nav{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px;border-bottom:1px solid var(--border)}

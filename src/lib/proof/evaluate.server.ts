@@ -113,6 +113,7 @@ export async function runEvaluateSpine(
   let txHash: string | undefined;
   let transferState: "locked" | "executed" | "config_required" | "failed" = "locked";
   const cdp = resolveCdpSecrets(tenant);
+  const id = receiptId();
 
   if (decision === "ALLOW") {
     if (!cdp) {
@@ -124,7 +125,7 @@ export async function runEvaluateSpine(
         const transfer = await executeAgentKitTransfer({
           amountUsd: data.amountUsd,
           recipient: data.recipient,
-          receiptId: "pending",
+          receiptId: id,
           credentials: cdp,
         });
         txHash = transfer.txHash;
@@ -142,7 +143,7 @@ export async function runEvaluateSpine(
   }
 
   const receipt: Receipt = {
-    id: receiptId(),
+    id,
     tenantId: tenant.session.tenantId,
     decision,
     amountUsd: data.amountUsd,
@@ -161,6 +162,7 @@ export async function runEvaluateSpine(
     servRawDecision: serv.decision.decision,
   };
 
+  // TRANSFER_FAILED / CONFIG_REQUIRED do not bind idempotency — retry stays possible.
   addReceipt(tenant, receipt);
 
   return {
