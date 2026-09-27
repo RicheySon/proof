@@ -164,3 +164,11 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - Agent Bearer auth unchanged for HTTP API
 - Honest: not OAuth/email; receipts still per-instance memory
 - `npm run test:auth`
+
+## 2026-09-27 — Full audit hardening (pre-merge)
+
+- Env CDP hard-rails to DEFAULT_POLICY (no shared-wallet drain via edited caps)
+- Idempotency `__pending__` reservation before awaits
+- Gate BYOK readiness; review rate limit; agent key uniqueness + constant-time env Bearer
+- Sanitize INTERNAL client errors; exact analytics consent cookie; Secure consent only on HTTPS
+- Flaws ledger updated; merge to main
