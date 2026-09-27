@@ -71,7 +71,15 @@ export const Route = createFileRoute("/api/v1/evaluate")({
             );
           }
           const message = error instanceof Error ? error.message : String(error);
-          return Response.json({ ok: false, code: "INTERNAL", message }, { status: 500 });
+          console.error("[proof/evaluate]", message);
+          return Response.json(
+            {
+              ok: false,
+              code: "INTERNAL",
+              message: "Internal error. Details are not returned to the client.",
+            },
+            { status: 500 },
+          );
         }
       },
       GET: async () =>

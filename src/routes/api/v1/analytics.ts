@@ -20,7 +20,11 @@ export const Route = createFileRoute("/api/v1/analytics")({
     handlers: {
       POST: async ({ request }) => {
         const cookie = request.headers.get("cookie") ?? "";
-        if (!cookie.includes("proof_consent=analytics")) {
+        const consent = cookie
+          .split(";")
+          .map((p) => p.trim())
+          .find((p) => p.startsWith("proof_consent="));
+        if (consent !== "proof_consent=analytics") {
           return Response.json({ ok: false, code: "CONSENT_REQUIRED" }, { status: 403 });
         }
         let body: { path?: string; referrer?: string | null } = {};

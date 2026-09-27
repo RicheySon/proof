@@ -34,8 +34,12 @@ function toClientError(error: unknown): {
   if (error instanceof ProofConfigError) {
     return { ok: false, code: error.code, message: error.message };
   }
-  const message = error instanceof Error ? error.message : String(error);
-  return { ok: false, code: "INTERNAL", message };
+  console.error("[proof]", error instanceof Error ? error.message : error);
+  return {
+    ok: false,
+    code: "INTERNAL",
+    message: "Internal error. Check server logs — details are not returned to the client.",
+  };
 }
 
 export const getIntegrationStatus = createServerFn({ method: "GET" }).handler(async () => {
@@ -127,6 +131,14 @@ export const reviewPolicy = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       const tenant = ensureTenantSession();
+      const limited = checkRateLimit(`ui-review:${tenant.session.tenantId}`, 20, 60_000);
+      if (!limited.ok) {
+        return {
+          ok: false as const,
+          code: "RATE_LIMITED",
+          message: `Too many reviews. Retry in ${limited.retryAfterSec}s.`,
+        };
+      }
       const servKey = resolveServApiKey(tenant);
       if (!servKey) {
         throw new ProofConfigError(

@@ -212,8 +212,14 @@ export function GatePage() {
     transfer: string;
   } | null>(null);
 
-  const servReady = Boolean(status?.env.servConfigured);
-  const cdpReady = Boolean(status?.env.cdpConfigured);
+  const servReady =
+    status?.byok?.serv === "tenant" ||
+    status?.byok?.serv === "env" ||
+    Boolean(status?.env.servConfigured);
+  const cdpReady =
+    status?.byok?.cdp === "tenant" ||
+    status?.byok?.cdp === "env" ||
+    Boolean(status?.env.cdpConfigured);
 
   const loadPreset = (type: Decision | "REPLAY") => {
     if (type === "REPLAY") {

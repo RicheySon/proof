@@ -19,6 +19,9 @@ Living ledger for judges and operators. Soft rule: never invent a green. Full ho
 | **TRANSFER_FAILED burned the idempotency key** | Flaky CDP / missing wallet → DENY receipt locked the intent forever; retry impossible | Only bind idempotency when the intent was adjudicated (ALLOW / policy DENY / REPLAY). **`TRANSFER_FAILED` and `CONFIG_REQUIRED` do not bind** — retry after fix |
 | Cold start wiped BYOK connections | Serverless memory empty → “Connected” became “Shared demo / none” after recycle | Mirror sealed BYOK in signed httpOnly `proof_byok_v1` cookie; rebuild agent hash index on restore |
 | **No way to sign back in** | “Log out / new workspace” only destroyed identity — judges could not return to the same desk | Workspace **recovery key** auth: protect in Settings → sign out → `/login` restores deterministic session id (hash only stored). Honest: not OAuth/email; receipts still per-instance |
+| **Shared env CDP drain via edited policy** | Anonymous tenant raised cap/allowlist → spent operator wallet | Env CDP path always re-runs **DEFAULT_POLICY** hard rails before transfer |
+| **Idempotency check-then-act race** | Two concurrent same-key requests both transferred | Reserve `__pending__` before any `await`; release only on TRANSFER_FAILED/CONFIG_REQUIRED |
+| **Gate ignored BYOK SERV** | UI disabled Prove when only tenant SERV connected | Gate readiness uses `byok.serv/cdp` like Review |
 | Serverless idempotency is per-instance | Cold starts can forget prior keys | Documented honesty on Integrations; Durable ledger = phase-2 |
 | Cost USD unknown from SERV | Temptation to invent pricing | Receipt shows tokens + **cost n/a from SERV** |
 | Quantum template still in root README | Judges see abandoned paste | Folio-style product README with diagrams + this ledger |

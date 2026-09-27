@@ -5,6 +5,7 @@ import {
   hashToken,
   hashWorkspaceKey,
   openSecret,
+  safeEqual,
   sealSecret,
   sessionIdFromWorkspaceKey,
   type ByokPublicStatus,
@@ -16,6 +17,8 @@ import { shouldBindIdempotency } from "./idempotency";
 const SESSION_COOKIE = "proof_session";
 const BYOK_COOKIE = "proof_byok_v1";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+/** Placeholder while an evaluate is in-flight — blocks concurrent double-spend. */
+export const IDEM_PENDING = "__pending__";
 
 type TenantSession = {
   sessionId: string;
@@ -233,8 +236,25 @@ export { shouldBindIdempotency } from "./idempotency";
 
 export function findReceiptByIdempotency(data: TenantData, key: string): Receipt | undefined {
   const id = data.idempotency.get(key);
-  if (!id) return undefined;
+  if (!id || id === IDEM_PENDING) return undefined;
   return data.receipts.find((r) => r.id === id);
+}
+
+/** true if key is free; false if final receipt or in-flight pending. */
+export function idempotencyBusy(data: TenantData, key: string): boolean {
+  return data.idempotency.has(key);
+}
+
+export function reserveIdempotency(data: TenantData, key: string): boolean {
+  if (data.idempotency.has(key)) return false;
+  data.idempotency.set(key, IDEM_PENDING);
+  return true;
+}
+
+export function releaseIdempotency(data: TenantData, key: string): void {
+  if (data.idempotency.get(key) === IDEM_PENDING) {
+    data.idempotency.delete(key);
+  }
 }
 
 export function getActivePolicy(data: TenantData, policyId?: string): Policy {
@@ -345,11 +365,21 @@ export function saveTenantAgentKey(data: TenantData, plainToken: string): void {
   if (trimmed.length < 16) {
     throw new ProofConfigError("Agent API key must be at least 16 characters.");
   }
+  const envAgent = process.env["PROOF_AGENT_API_KEY"]?.trim();
+  if (envAgent && trimmed.length === envAgent.length && safeEqual(trimmed, envAgent)) {
+    throw new ProofConfigError(
+      "Cannot reuse the shared PROOF_AGENT_API_KEY as a tenant agent key.",
+    );
+  }
   const store = root();
+  const hash = hashToken(trimmed);
+  const existing = store.byAgentHash.get(hash);
+  if (existing && existing !== data.session.sessionId) {
+    throw new ProofConfigError("This agent key is already bound to another workspace.");
+  }
   if (data.byok.agentApiKeyHash) {
     store.byAgentHash.delete(data.byok.agentApiKeyHash);
   }
-  const hash = hashToken(trimmed);
   data.byok.agentApiKeyHash = hash;
   store.byAgentHash.set(hash, data.session.sessionId);
   persistByokCookie(data);
@@ -380,6 +410,7 @@ export function resolveCdpSecrets(data: TenantData): {
   apiKeySecret: string;
   walletSecret: string;
   evmAddress: string;
+  source: "tenant" | "env";
 } | null {
   if (
     data.byok.cdpApiKeyId &&
@@ -393,28 +424,37 @@ export function resolveCdpSecrets(data: TenantData): {
         apiKeySecret: openSecret(data.byok.cdpApiKeySecret),
         walletSecret: openSecret(data.byok.cdpWalletSecret),
         evmAddress: openSecret(data.byok.cdpEvmAddress),
+        source: "tenant",
       };
     } catch {
       return null;
     }
   }
-  const apiKeyId = process.env['CDP_API_KEY_ID']?.trim() ?? process.env['CDP_API_KEY_NAME']?.trim();
+  const apiKeyId = process.env["CDP_API_KEY_ID"]?.trim() ?? process.env["CDP_API_KEY_NAME"]?.trim();
   const apiKeySecret =
-    process.env['CDP_API_KEY_SECRET']?.trim() ?? process.env['CDP_API_KEY_PRIVATE_KEY']?.trim();
-  const walletSecret = process.env['CDP_WALLET_SECRET']?.trim();
-  const evmAddress = process.env['CDP_EVM_ADDRESS']?.trim();
+    process.env["CDP_API_KEY_SECRET"]?.trim() ?? process.env["CDP_API_KEY_PRIVATE_KEY"]?.trim();
+  const walletSecret = process.env["CDP_WALLET_SECRET"]?.trim();
+  const evmAddress = process.env["CDP_EVM_ADDRESS"]?.trim();
   if (apiKeyId && apiKeySecret && walletSecret && evmAddress) {
-    return { apiKeyId, apiKeySecret, walletSecret, evmAddress };
+    return { apiKeyId, apiKeySecret, walletSecret, evmAddress, source: "env" };
   }
   return null;
 }
 
 /**
  * Resolve agent Bearer → tenant.
- * 1) Tenant BYOK hash match (isolated workspace)
- * 2) Shared env PROOF_AGENT_API_KEY → dedicated agent tenant
+ * Shared env key wins (constant-time) so BYOK cannot shadow the demo agent key.
  */
 export function resolveAgentTenant(bearerToken: string): TenantData | null {
+  const expected = process.env["PROOF_AGENT_API_KEY"]?.trim();
+  if (
+    expected &&
+    bearerToken.length === expected.length &&
+    safeEqual(bearerToken, expected)
+  ) {
+    return ensureAgentTenant();
+  }
+
   const store = root();
   const hash = hashToken(bearerToken);
   const sessionId = store.byAgentHash.get(hash);
@@ -424,10 +464,6 @@ export function resolveAgentTenant(bearerToken: string): TenantData | null {
       data.session.lastSeenAt = new Date().toISOString();
       return data;
     }
-  }
-  const expected = process.env['PROOF_AGENT_API_KEY']?.trim();
-  if (expected && bearerToken === expected) {
-    return ensureAgentTenant();
   }
   return null;
 }

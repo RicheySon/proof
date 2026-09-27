@@ -15,7 +15,9 @@ function readConsent(): "essential" | "analytics" | null {
 
 function writeConsent(value: "essential" | "analytics") {
   const maxAge = 60 * 60 * 24 * 180;
-  document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure`;
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
 }
 
 function loadAnalytics() {
