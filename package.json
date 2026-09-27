@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "test:gate": "tsx scripts/test-code-gate.ts",
     "smoke:serv": "tsx --env-file=.env scripts/smoke-serv.ts",
+    "smoke:cdp-auth": "tsx --env-file=.env scripts/smoke-cdp-auth.ts",
     "typecheck": "tsc --noEmit"
   },
   "overrides": {

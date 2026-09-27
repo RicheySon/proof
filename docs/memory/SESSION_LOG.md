@@ -64,3 +64,16 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - ALLOW on $2 allowlisted → OK (SERV only; transfer still needs CDP)
 - `/review` structured risks → OK
 - Fixed SERV client: policy in user JSON, strict json_schema `required` includes all properties, content_filter/refusal fail-closed
+
+## 2026-09-27 — CDP Secret API Key + Vercel production
+
+### CDP
+- Portal Secret API Key JSON loaded into gitignored `.env` (`CDP_API_KEY_ID` + `CDP_API_KEY_SECRET`)
+- Live smoke: Ed25519 Bearer JWT → `GET /platform/v2/evm/accounts` **200** with `accounts: []`
+- Still missing: `CDP_WALLET_SECRET` (portal Non-custodial → Security → Generate) then create + fund EVM account
+
+### Vercel (CLI token; MCP still needsAuth)
+- Created/linked project `teamtitanlink/proof` → GitHub connected
+- Pushed secrets to Production / Preview / Development (names only logged)
+- Production deploy READY: https://proof-smoky.vercel.app
+- Inspect: https://vercel.com/teamtitanlink/proof
