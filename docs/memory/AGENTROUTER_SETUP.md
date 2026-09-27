@@ -4,6 +4,7 @@
 Hackathon evaluate + review must use OpenServ SERV (`SERV_API_KEY`).
 
 Aligned to live smoke on this Cursor VM (2026-09-27):
+
 - Direct `https://agentrouter.org` from cloud IP → Aliyun WAF captcha HTML (not a bad key).
 - Via Tor `socks5h://127.0.0.1:9050` + stainless / QwenCode headers → JSON chat completions (`deepseek-v4-flash`).
 
@@ -89,12 +90,12 @@ x-stainless-retry-count: 0
 
 ## Failure modes
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| HTML / aliyun_waf / captcha | Direct IP, Tor off | Start Tor + `AGENTROUTER_USE_TOR=1` |
-| Budget / channel exhausted | Model quota | Use `deepseek-v4-flash` or top up |
-| Invalid API Key on co.agentrouter.org | Wrong host/pool | Use `agentrouter.org` only |
-| Tor bootstrap timeout | Tor not installed / blocked | Check `/tmp/proof-tor-run/tor.log` |
+| Symptom                               | Cause                       | Fix                                 |
+| ------------------------------------- | --------------------------- | ----------------------------------- |
+| HTML / aliyun_waf / captcha           | Direct IP, Tor off          | Start Tor + `AGENTROUTER_USE_TOR=1` |
+| Budget / channel exhausted            | Model quota                 | Use `deepseek-v4-flash` or top up   |
+| Invalid API Key on co.agentrouter.org | Wrong host/pool             | Use `agentrouter.org` only          |
+| Tor bootstrap timeout                 | Tor not installed / blocked | Check `/tmp/proof-tor-run/tor.log`  |
 
 ---
 
@@ -103,6 +104,7 @@ x-stainless-retry-count: 0
 Do **not** call AgentRouter direct from Vercel serverless IPs — expect WAF.
 
 Options:
+
 1. **Skip AgentRouter on Vercel** — PROOF win spine only needs SERV + CDP.
 2. Deploy a small relay (Cloudflare Worker / cool-IP host) that forwards to `https://agentrouter.org/v1/chat/completions` with stainless headers (Tor on the relay if needed). Point any future relay env at that URL.
 

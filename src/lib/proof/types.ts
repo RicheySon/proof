@@ -8,6 +8,7 @@ export const RuleCodeSchema = z.enum([
   "OVER_CAP",
   "PAYEE_NOT_ALLOWLISTED",
   "REPLAY",
+  "DAILY_BUDGET_EXCEEDED",
   "SERV_DENY",
   "SERV_INVALID",
   "SERV_SHADOW_FAIL",
@@ -25,6 +26,8 @@ export const PolicySchema = z.object({
   allowlist: z.array(z.string().min(4)),
   abstainOnUncertainty: z.boolean(),
   promptVersion: z.string(),
+  /** Optional rolling calendar-day spend ceiling across ALLOW receipts. */
+  dailyBudgetUsd: z.number().positive().optional(),
 });
 export type Policy = z.infer<typeof PolicySchema>;
 
@@ -95,23 +98,23 @@ export type ReviewResult = z.infer<typeof ReviewResultSchema>;
 export const DEFAULT_POLICY: Policy = {
   id: "contractor-payouts",
   name: "Contractor payouts",
-  version: "1.5",
+  version: "1.6",
   maxAmountUsd: 5,
   // Live Base Sepolia payee (CDP account proof-payee). Public address — safe to commit.
   allowlist: ["0xE2891FC6511652EE73A8B7Acda66e7a3fFA24b3C"],
   abstainOnUncertainty: true,
-  promptVersion: "policy-v1.5",
+  promptVersion: "policy-v1.6",
+  dailyBudgetUsd: 10,
 };
 
-/** Normalize addresses for allowlist compare (demo uses truncated forms). */
+/** Normalize addresses for allowlist compare. */
 export function normalizeAddress(value: string): string {
-  return value.trim().toLowerCase().replace(/[.…]/g, "");
+  return value.trim().toLowerCase();
 }
 
+/** Exact allowlist match only — substring matching was a fail-open loophole. */
 export function addressAllowlisted(recipient: string, allowlist: string[]): boolean {
   const target = normalizeAddress(recipient);
-  return allowlist.some((entry) => {
-    const known = normalizeAddress(entry.split("—")[0] ?? entry);
-    return target.includes(known) || known.includes(target);
-  });
+  if (!/^0x[a-f0-9]{40}$/.test(target)) return false;
+  return allowlist.some((entry) => normalizeAddress(entry) === target);
 }

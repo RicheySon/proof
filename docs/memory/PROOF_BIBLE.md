@@ -7,7 +7,7 @@
 **Submit:** **28 Sep 2026 00:00 UTC** · X post (@openservai) + form · org **data collection ON**  
 **Track:** **AgentKit** (primary) · optional Open  
 **Prize door:** $1k SERV track · chase +$1k USDC overall  
-**Criteria:** Creativity · user-readiness · revenue potential  
+**Criteria:** Creativity · user-readiness · revenue potential
 
 ---
 
@@ -48,26 +48,26 @@ Agent tries $2 to allowlist → **ALLOW** → Base Sepolia transfer → receipt.
 
 ## Pitch order
 
-1. Runaway agent pain · 2. Deny on camera · 3. Why SERV (not regex) · 4. AgentKit live tx · 5. Receipt metrics · 6. Who pays (per-ALLOW / ops SaaS)  
+1. Runaway agent pain · 2. Deny on camera · 3. Why SERV (not regex) · 4. AgentKit live tx · 5. Receipt metrics · 6. Who pays (per-ALLOW / ops SaaS)
 
 Never lead “AI portfolio manager,” AXIS yield, or POCKET clone.
 
 ## Scoring map
 
-| Criterion | Hit |
-|---|---|
-| **Creativity** | Fail-closed proof gate — not chat with base URL |
-| **User-readiness** | Bad→block / good→tx · empty + deny states · one-sentence soft |
-| **Revenue potential** | Agent-ops pays per ALLOW or monthly gate |
+| Criterion             | Hit                                                           |
+| --------------------- | ------------------------------------------------------------- |
+| **Creativity**        | Fail-closed proof gate — not chat with base URL               |
+| **User-readiness**    | Bad→block / good→tx · empty + deny states · one-sentence soft |
+| **Revenue potential** | Agent-ops pays per ALLOW or monthly gate                      |
 
 ## Network truth
 
-| Thing | Where |
-|---|---|
-| SERV Reasoning | `https://inference-api.openserv.ai/v1` · $5 start credit |
-| AgentKit wallet | CDP · **Base Sepolia** labeled |
-| IXS vault | Phase-2 only if API open — don’t block submit |
-| RH MCP | Parked — access unverified · AXIS overlap |
+| Thing           | Where                                                    |
+| --------------- | -------------------------------------------------------- |
+| SERV Reasoning  | `https://inference-api.openserv.ai/v1` · $5 start credit |
+| AgentKit wallet | CDP · **Base Sepolia** labeled                           |
+| IXS vault       | Phase-2 only if API open — don’t block submit            |
+| RH MCP          | Parked — access unverified · AXIS overlap                |
 
 ## Architecture
 
@@ -88,7 +88,7 @@ SERV base URL · Multipath **or** hard multipath-worthy policy prompt · Shadow 
 Structured ALLOW/DENY · **code fail-closed** (Day One: side effects in app)  
 AgentKit CDP transfer · Base Sepolia  
 Receipt: prompt version · shadow outcome · tokens · latency · cost · tx  
-Console data collection ON · public repo · X + form  
+Console data collection ON · public repo · X + form
 
 ## Honesty
 
@@ -101,12 +101,12 @@ Base-URL wrapper · trading chatbot · IXS-only without access · RH-first · PO
 
 ## Build
 
-| Phase | Ship |
-|---|---|
-| 0 | Memory + rules + skills + server evaluate/deny path |
-| 1 | AgentKit wire · Sepolia allow tx (when CDP secrets land) |
-| 2 | Receipt UI · cost/latency · X assets · reviewer · layout · favicons |
-| ≤ 28 Sep 00:00 UTC | Post + form + data collection |
+| Phase              | Ship                                                                |
+| ------------------ | ------------------------------------------------------------------- |
+| 0                  | Memory + rules + skills + server evaluate/deny path                 |
+| 1                  | AgentKit wire · Sepolia allow tx (when CDP secrets land)            |
+| 2                  | Receipt UI · cost/latency · X assets · reviewer · layout · favicons |
+| ≤ 28 Sep 00:00 UTC | Post + form + data collection                                       |
 
 ## Pitch (15s)
 

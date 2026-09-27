@@ -136,6 +136,33 @@ export function listReceipts(data: TenantData): Receipt[] {
   return data.receipts;
 }
 
+/** Sum of ALLOW receipt amounts for the current UTC calendar day. */
+export function spentTodayUsd(data: TenantData, now = new Date()): number {
+  const day = now.toISOString().slice(0, 10);
+  return data.receipts
+    .filter((r) => r.decision === "ALLOW" && r.createdAt.startsWith(day))
+    .reduce((sum, r) => sum + r.amountUsd, 0);
+}
+
+/**
+ * Dedicated in-memory tenant for agent HTTP callers (Bearer PROOF_AGENT_API_KEY).
+ * Same process limits as cookie tenants — documented honesty, not a Durable ledger.
+ */
+export function ensureAgentTenant(): TenantData {
+  const store = root();
+  const sessionId = "agent_http_tenant_v1";
+  const existing = store.bySession.get(sessionId);
+  if (existing) {
+    existing.session.lastSeenAt = new Date().toISOString();
+    return existing;
+  }
+  const data = newTenant(sessionId);
+  data.session.tenantId = "ten_agent_http";
+  data.session.orgName = "PROOF Agent API";
+  store.bySession.set(sessionId, data);
+  return data;
+}
+
 export function envStatus() {
   return getProofEnvStatus();
 }

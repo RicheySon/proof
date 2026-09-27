@@ -3,28 +3,32 @@
 ## 2026-09-27 — Discovery + plan lock
 
 ### Live fact-checks
+
 - Hackathon Edition 01 confirmed: submit **28 Sep 2026 00:00 UTC**; AgentKit track; $1k SERV/track + $1k USDC overall; data collection ON required. Source: https://www.openserv.ai/hackathon
 - SERV API: `https://inference-api.openserv.ai/v1`, system prompt required, tools `serv_shadow_agent` / `serv_prompt_guard`, Multipath via `*-serv-multipath` model suffix. Sources: docs.openserv.ai
 - Multipath does **not** authorize side effects (docs).
 - Repo was simulated demo (client heuristic + sessionStorage).
 
 ### Decisions
+
 - Keys: neither SERV nor CDP yet → build fail-closed live paths; endpoints error if secrets missing (no mocks).
 - Scope: hackathon win spine + favicon metadata, layout fix, reviewer page, full testing.
 - Soft: agents cannot move money until policy proof — including replay of same payment (idempotency).
 
 ### API key probes (no secret values logged)
-| Provider | Result |
-|----------|--------|
-| Tavily | Plan usage limit exceeded |
-| TinyFish Search (`api.search.tinyfish.ai`) | Works |
-| TinyFish Automation | Wallet $0 — needs top-up |
-| AgentRouter | Aliyun WAF blocks this cloud env |
-| SERV / CDP | Not provided yet |
+
+| Provider                                   | Result                           |
+| ------------------------------------------ | -------------------------------- |
+| Tavily                                     | Plan usage limit exceeded        |
+| TinyFish Search (`api.search.tinyfish.ai`) | Works                            |
+| TinyFish Automation                        | Wallet $0 — needs top-up         |
+| AgentRouter                                | Aliyun WAF blocks this cloud env |
+| SERV / CDP                                 | Not provided yet                 |
 
 ## 2026-09-27 — Build spine shipped
 
 ### Shipped
+
 - Memory docs, Cursor rules/skills
 - Fail-closed server evaluate / code gate / CDP transfer / receipts / review
 - Multitenant signed httpOnly sessions (no localStorage receipts)
@@ -35,15 +39,18 @@
 - `npm run test:gate` green (OVER_CAP / allowlist / REPLAY / ALLOW)
 
 ### Keys still missing for live SERV/CDP calls
+
 See KEYS_STATUS.md — endpoints return CONFIG_REQUIRED (no mocks).
 
 ### Vercel MCP
+
 - Attempted Vercel MCP `mcp_auth` → **timed out**. User must approve Vercel MCP in Cursor, then re-ask to wire env/deploy.
 - Added [`KEYS_SETUP.md`](KEYS_SETUP.md) with ordered steps + official links for SERV, CDP, Vercel, demo script.
 
 ## 2026-09-27 — Keys wired + CDP flow documented
 
 ### Operator-supplied keys (values only in gitignored `.env`, never committed)
+
 - SERV → live `/v1/models` + multipath chat completions OK
 - AgentRouter → direct WAF; Tor `socks5h://127.0.0.1:9050` + stainless headers → `deepseek-v4-flash` OK
 - TinyFish → wallet + search HTTP 200
@@ -51,15 +58,18 @@ See KEYS_STATUS.md — endpoints return CONFIG_REQUIRED (no mocks).
 - CDP → still operator action; full portal flow in [`CDP_SETUP.md`](CDP_SETUP.md)
 
 ### Docs added/updated
+
 - [`CDP_SETUP.md`](CDP_SETUP.md) — click-by-click Secret API Key, Wallet Secret, EVM account, Base Sepolia ETH+USDC faucet
 - [`AGENTROUTER_SETUP.md`](AGENTROUTER_SETUP.md) — Tor path, headers, Vercel relay note (AgentRouter ≠ SERV)
 - `.env.example` — optional TinyFish / Tavily / AgentRouter vars
 - `scripts/smoke-serv.ts` — live DENY + review smoke
 
 ### Still blocked for full ALLOW+tx demo
+
 Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 
 ### Live SERV smoke (`npm run smoke:serv`)
+
 - DENY on $50 over-cap → OK
 - ALLOW on $2 allowlisted → OK (SERV only; transfer still needs CDP)
 - `/review` structured risks → OK
@@ -68,11 +78,13 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 ## 2026-09-27 — CDP Secret API Key + Vercel production
 
 ### CDP
+
 - Portal Secret API Key JSON loaded into gitignored `.env` (`CDP_API_KEY_ID` + `CDP_API_KEY_SECRET`)
 - Live smoke: Ed25519 Bearer JWT → `GET /platform/v2/evm/accounts` **200** with `accounts: []`
 - Still missing: `CDP_WALLET_SECRET` (portal Non-custodial → Security → Generate) then create + fund EVM account
 
 ### Vercel (CLI token; MCP still needsAuth)
+
 - Created/linked project `teamtitanlink/proof` → GitHub connected
 - Pushed secrets to Production / Preview / Development (names only logged)
 - Production deploy READY: https://proof-smoky.vercel.app
@@ -81,14 +93,25 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 ## 2026-09-27 — CDP Wallet Secret + live Base Sepolia transfer
 
 ### CDP bootstrap
+
 - Wallet Secret wired (gitignored `.env` + Vercel)
 - Created accounts: `proof-spender` `0xE4489256De809eE14BFEbD30461Ea47075f3e2FA`, `proof-payee` `0xE2891FC6511652EE73A8B7Acda66e7a3fFA24b3C`
 - Faucet ETH + USDC on Base Sepolia (faucet unit ≈ $1 USDC → demo ALLOW preset is **$1**)
 - Policy allowlist + Gate presets updated to full payee address (required for CDP send)
 
-### Full spine smoke (`npm run smoke:full`)
-- DENY $50 → SERV DENY + code gate `OVER_CAP`
-- ALLOW $1 → SERV ALLOW + code gate `POLICY_ALLOW` + **live tx**  
-  `0xd38a39f60caf2854d5bfe6dc87098fe58c289ca00024f10f17c5cb2fab6743f3`
-- REPLAY → `REPLAY` DENY
-- `smoke_full_spine_ok`
+## 2026-09-27 — Competitive lock-in (scout + flaws + Folio README)
+
+### Scout
+
+- Track signal: SERV load-bearing (Multipath/Shadow/PromptGuard) + AgentKit onchain payments
+- Public X submissions still sparse near deadline; rotated against track intent + AgentKit peer patterns
+- Logged in [`COMPETITORS.md`](COMPETITORS.md)
+
+### Flaws closed this pass
+
+- Replay no longer returns prior ALLOW — fresh DENY · REPLAY receipt
+- Allowlist exact match only (prefix loophole closed)
+- Daily budget gate + agent HTTP `POST /api/v1/evaluate`
+- Integrations network matrix + Basescan links + Load replay preset
+- Folio-format README with mermaid diagrams; Quantum template removed
+- [`FLAWS_AND_WORKAROUNDS.md`](FLAWS_AND_WORKAROUNDS.md) ledger

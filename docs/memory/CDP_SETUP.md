@@ -13,6 +13,7 @@ PROOF_NETWORK=base-sepolia
 **Never** put these in git, screenshots, client bundles, or chat. Rotate anything already pasted.
 
 Official sources (fact-checked 2026-09-27):
+
 - Portal: https://portal.cdp.coinbase.com
 - Auth (Secret API Key + Wallet Secret): https://docs.cdp.coinbase.com/api-reference/v2/authentication
 - API-key wallet quickstart: https://docs.cdp.coinbase.com/wallets/quickstart/api-key-auth
@@ -51,6 +52,7 @@ Docs path: API Authentication → Secret API Key.
 9. Close the modal. If you lose the secret, **Configure → delete/recreate** (you cannot view the old secret again).
 
 Paste into local `.env` only:
+
 ```bash
 CDP_API_KEY_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 CDP_API_KEY_SECRET=...base64...
@@ -111,6 +113,7 @@ Portal alternative: create/view the account under Non-custodial Wallet → Accou
 ## E) Fund Base Sepolia — ETH (gas) + USDC (transfer)
 
 PROOF sends **USDC** on **base-sepolia**. You need:
+
 - **ETH** for gas
 - **USDC** for the transfer amount
 
@@ -152,6 +155,7 @@ Rate limits exist (ETH ~1000 claims / 24h @ 0.0001 ETH; ERC-20 daily caps by tok
 ## F) Wire into PROOF + verify
 
 Local `.env` (gitignored):
+
 ```bash
 CDP_API_KEY_ID=...
 CDP_API_KEY_SECRET=...
@@ -163,6 +167,7 @@ PROOF_NETWORK=base-sepolia
 Vercel → Project → Settings → Environment Variables → **Production + Preview** → same four names → Redeploy.
 
 Sanity:
+
 1. Open `/integrations` → AgentKit/CDP shows **Connected** (not “Key required”).
 2. `/gate` → Load $1 allow (allowlisted payee) → Prove → receipt has real `0x` tx hash on Base Sepolia.
 3. Deny / replay paths still produce **no** tx hash.
@@ -173,11 +178,11 @@ If any CDP secret is missing, PROOF returns `CONFIG_REQUIRED` and never invents 
 
 ## G) What each secret is used for (PROOF)
 
-| Secret | Role in PROOF |
-|--------|----------------|
-| `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` | Bearer JWT (`Authorization`) proving project ownership |
-| `CDP_WALLET_SECRET` | `X-Wallet-Auth` JWT with `reqHash` for send/sign |
-| `CDP_EVM_ADDRESS` | From-account for `POST /platform/v2/evm/accounts/{address}/send/transaction` |
+| Secret                                  | Role in PROOF                                                                |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` | Bearer JWT (`Authorization`) proving project ownership                       |
+| `CDP_WALLET_SECRET`                     | `X-Wallet-Auth` JWT with `reqHash` for send/sign                             |
+| `CDP_EVM_ADDRESS`                       | From-account for `POST /platform/v2/evm/accounts/{address}/send/transaction` |
 
 Auth reference: https://docs.cdp.coinbase.com/api-reference/v2/authentication
 
@@ -185,13 +190,13 @@ Auth reference: https://docs.cdp.coinbase.com/api-reference/v2/authentication
 
 ## H) Common failures
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| Integrations: CDP Key required | Env not loaded / wrong Vercel env scope | Set all four vars; redeploy |
-| Auth 401 / JWT invalid | Wrong ID/secret or Ed25519 vs ES256 mismatch | Recreate Secret API Key; paste both ID + Secret |
-| Wallet auth fail | Missing/wrong Wallet Secret | Regenerate Wallet Secret in Security; update env |
-| Send fails / insufficient funds | No ETH gas or no USDC | Re-run Base Sepolia faucet for both tokens |
-| Wrong network | Mainnet address / wrong `PROOF_NETWORK` | Keep `base-sepolia` for the hackathon demo |
+| Symptom                         | Cause                                        | Fix                                              |
+| ------------------------------- | -------------------------------------------- | ------------------------------------------------ |
+| Integrations: CDP Key required  | Env not loaded / wrong Vercel env scope      | Set all four vars; redeploy                      |
+| Auth 401 / JWT invalid          | Wrong ID/secret or Ed25519 vs ES256 mismatch | Recreate Secret API Key; paste both ID + Secret  |
+| Wallet auth fail                | Missing/wrong Wallet Secret                  | Regenerate Wallet Secret in Security; update env |
+| Send fails / insufficient funds | No ETH gas or no USDC                        | Re-run Base Sepolia faucet for both tokens       |
+| Wrong network                   | Mainnet address / wrong `PROOF_NETWORK`      | Keep `base-sepolia` for the hackathon demo       |
 
 ---
 

@@ -167,10 +167,12 @@ export function GatePage() {
   const [recipient, setRecipient] = useState(demoDenyAddress);
   const [intent, setIntent] = useState("Pay contractor for completed design sprint");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [lastAllowKey, setLastAllowKey] = useState<string | null>(null);
   const [phase, setPhase] = useState<GatePhase>("form");
   const [decision, setDecision] = useState<Decision>("DENY");
   const [rule, setRule] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | undefined>();
   const [stages, setStages] = useState<{
     serv: string;
     shadow: string;
@@ -182,13 +184,28 @@ export function GatePage() {
   const servReady = Boolean(status?.env.servConfigured);
   const cdpReady = Boolean(status?.env.cdpConfigured);
 
-  const loadPreset = (type: Decision) => {
+  const loadPreset = (type: Decision | "REPLAY") => {
+    if (type === "REPLAY") {
+      if (!lastAllowKey) {
+        toast.message("Run an ALLOW first, then replay the same key");
+        return;
+      }
+      setAmount("1");
+      setRecipient(demoPayeeAddress);
+      setIdempotencyKey(lastAllowKey);
+      setPhase("form");
+      setError(null);
+      setStages(null);
+      setTxHash(undefined);
+      return;
+    }
     setAmount(type === "ALLOW" ? "1" : "50");
     setRecipient(type === "ALLOW" ? demoPayeeAddress : demoDenyAddress);
     setIdempotencyKey(crypto.randomUUID());
     setPhase("form");
     setError(null);
     setStages(null);
+    setTxHash(undefined);
   };
 
   const runEvaluate = async () => {
@@ -210,8 +227,12 @@ export function GatePage() {
       setDecision(result.receipt.decision);
       setRule(result.receipt.rule);
       setStages(result.stages);
+      setTxHash(result.receipt.txHash);
       setPhase("result");
-      if (result.replayed) toast.message("Replay blocked — same idempotency key");
+      if (result.receipt.decision === "ALLOW" && !result.replayed) {
+        setLastAllowKey(idempotencyKey);
+      }
+      if (result.replayed) toast.message("Replay blocked — DENY · REPLAY");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setPhase("error");
@@ -246,6 +267,9 @@ export function GatePage() {
             </Button>
             <Button variant="outline" onClick={() => loadPreset("ALLOW")}>
               <CheckCircle2 /> Load $1 allow
+            </Button>
+            <Button variant="outline" onClick={() => loadPreset("REPLAY")} disabled={!lastAllowKey}>
+              <ShieldCheck /> Load replay
             </Button>
           </div>
           <label className="field">
@@ -382,12 +406,28 @@ export function GatePage() {
                 decision === "ALLOW" ? "result-callout is-allow" : "result-callout is-deny"
               }
             >
-              <strong>{decision === "ALLOW" ? "Transfer allowed" : "Transfer refused"}</strong>
+              <strong>
+                {rule === "REPLAY"
+                  ? "Replay refused"
+                  : decision === "ALLOW"
+                    ? "Transfer allowed"
+                    : "Transfer refused"}
+              </strong>
               <p>
-                {decision === "ALLOW"
-                  ? "Live path produced an ALLOW receipt."
+                {txHash
+                  ? "Live Base Sepolia USDC transfer recorded on the receipt."
                   : `No transaction. Rule fired: ${rule}.`}
               </p>
+              {txHash && (
+                <a
+                  className="text-sm underline"
+                  href={`https://sepolia.basescan.org/tx/${txHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open on Basescan
+                </a>
+              )}
               <Button asChild variant="outline">
                 <Link to="/receipts">
                   View receipt <ChevronRight />
@@ -601,17 +641,24 @@ export function ReceiptsPage() {
                 <dd>{selected.shadow}</dd>
               </div>
               <div>
-                <dt>Latency / cost</dt>
+                <dt>Latency / tokens / cost</dt>
                 <dd>
                   {selected.latencyMs} ms ·{" "}
-                  {selected.costUsd == null ? "n/a" : `$${selected.costUsd}`}
+                  {selected.tokens?.total != null ? `${selected.tokens.total} tok` : "tokens n/a"} ·{" "}
+                  {selected.costUsd == null ? "cost n/a from SERV" : `$${selected.costUsd}`}
                 </dd>
               </div>
               {selected.txHash && (
                 <div>
                   <dt>Tx hash</dt>
                   <dd className="tx-line">
-                    {selected.txHash}
+                    <a
+                      href={`https://sepolia.basescan.org/tx/${selected.txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {selected.txHash}
+                    </a>
                     <Button variant="ghost" size="icon" onClick={() => copy(selected.txHash ?? "")}>
                       <Copy />
                     </Button>
@@ -629,12 +676,14 @@ export function ReceiptsPage() {
 export function PoliciesPage() {
   const { activePolicy, persistPolicy } = useProofDemo();
   const [cap, setCap] = useState(activePolicy.maxAmountUsd);
+  const [dailyBudget, setDailyBudget] = useState(activePolicy.dailyBudgetUsd ?? 10);
   const [abstain, setAbstain] = useState(activePolicy.abstainOnUncertainty);
   const [allowlistText, setAllowlistText] = useState(activePolicy.allowlist.join("\n"));
   const [name, setName] = useState(activePolicy.name);
 
   useEffect(() => {
     setCap(activePolicy.maxAmountUsd);
+    setDailyBudget(activePolicy.dailyBudgetUsd ?? 10);
     setAbstain(activePolicy.abstainOnUncertainty);
     setAllowlistText(activePolicy.allowlist.join("\n"));
     setName(activePolicy.name);
@@ -646,6 +695,7 @@ export function PoliciesPage() {
         ...activePolicy,
         name,
         maxAmountUsd: cap,
+        dailyBudgetUsd: dailyBudget,
         abstainOnUncertainty: abstain,
         allowlist: allowlistText
           .split("\n")
@@ -702,6 +752,14 @@ export function PoliciesPage() {
           <label className="field">
             <span>Maximum transfer · USDC</span>
             <input type="number" value={cap} onChange={(e) => setCap(Number(e.target.value))} />
+          </label>
+          <label className="field">
+            <span>Daily budget · USDC (UTC day)</span>
+            <input
+              type="number"
+              value={dailyBudget}
+              onChange={(e) => setDailyBudget(Number(e.target.value))}
+            />
           </label>
           <label className="field">
             <span>Allowlisted recipients</span>
@@ -873,30 +931,41 @@ export function IntegrationsPage() {
   const integrations = [
     {
       name: "SERV Reasoning",
-      desc: "Multipath + Shadow + PromptGuard at inference-api.openserv.ai",
+      desc: `${status?.env.servModel ?? "gpt-5.4-mini-serv-multipath"} · tools ${
+        status?.servTools?.join(", ") ?? "serv_prompt_guard, serv_shadow_agent"
+      }`,
       status: serv ? "Connected" : "Key required",
-      tone: serv ? "live" : "demo",
+      tone: serv ? "live" : "need",
       icon: <Sparkles />,
     },
     {
       name: "AgentKit / CDP",
-      desc: "Transfer only after ALLOW + code gate.",
+      desc: status?.cdpRail ?? "Bearer JWT + X-Wallet-Auth · Base Sepolia send",
       status: cdp ? "Connected" : "Key required",
-      tone: cdp ? "live" : "demo",
+      tone: cdp ? "live" : "need",
       icon: <CircleDollarSign />,
     },
     {
       name: "Tenant session",
       desc: "Signed httpOnly cookie. No localStorage receipts.",
       status: session ? "Ready" : "SESSION_SECRET required",
-      tone: session ? "live" : "demo",
+      tone: session ? "live" : "need",
       icon: <LockKeyhole />,
     },
     {
+      name: "Agent HTTP API",
+      desc: "POST /api/v1/evaluate · Bearer PROOF_AGENT_API_KEY",
+      status: status?.agentApiConfigured ? "Armed" : "Key optional",
+      tone: status?.agentApiConfigured ? "live" : "need",
+      icon: <FileCheck2 />,
+    },
+    {
       name: "Base Sepolia",
-      desc: "Explicitly labeled testnet. No mainnet claims.",
-      status: "Testnet",
-      tone: "demo",
+      desc: `Spender ${status?.spenderAddress?.slice(0, 10) ?? "—"}… · payee ${
+        status?.demoPayee?.slice(0, 10) ?? "—"
+      }…`,
+      status: "Live testnet",
+      tone: "testnet",
       icon: <ExternalLink />,
     },
     {
@@ -921,6 +990,27 @@ export function IntegrationsPage() {
       eyebrow="Decision infrastructure"
       action={<MetaPill>{status?.honesty ? "Honest status" : "Loading"}</MetaPill>}
     >
+      <section className="surface" style={{ marginBottom: "1.25rem", padding: "1.25rem" }}>
+        <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Network matrix</h2>
+        <p style={{ marginTop: "0.35rem", opacity: 0.8 }}>
+          What is load-bearing vs parked. Spent today (UTC): $
+          {(status?.spentTodayUsd ?? 0).toFixed(2)}.
+        </p>
+        <div className="integration-grid" style={{ marginTop: "1rem" }}>
+          {[
+            ["SERV Multipath + tools", serv ? "live" : "off"],
+            ["CDP JWT rail", cdp ? "live" : "off"],
+            ["Code gate", "live"],
+            ["Idempotency store", "per-instance"],
+            ["IXS / RH", "parked"],
+          ].map(([label, state]) => (
+            <div key={label} className="surface" style={{ padding: "0.85rem" }}>
+              <strong>{label}</strong>
+              <p style={{ margin: "0.25rem 0 0", opacity: 0.75 }}>{state}</p>
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="integration-grid">
         {integrations.map((item) => (
           <section className="surface integration-card" key={item.name}>
