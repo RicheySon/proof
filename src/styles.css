@@ -386,6 +386,8 @@
 .cookie-banner__copy{flex:1 1 280px}
 .cookie-banner__copy p{margin:.35rem 0 0;font-size:13px;color:var(--muted-foreground);line-height:1.45}
 .cookie-banner__actions{display:flex;flex-wrap:wrap;gap:8px}
+.cookie-banner__actions button{color:var(--foreground)}
+.cookie-banner__actions button:last-child{color:var(--primary-foreground)}
 .hp-field{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
 .legal-page{min-height:100vh;background:var(--background);color:var(--foreground)}
 .legal-page__nav{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px;border-bottom:1px solid var(--border)}
