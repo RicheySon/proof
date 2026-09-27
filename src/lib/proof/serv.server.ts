@@ -128,8 +128,9 @@ function extractContent(completion: OpenAI.Chat.Completions.ChatCompletion): str
 export async function evaluateWithServ(
   input: EvaluateInput,
   policy: Policy,
+  opts?: { apiKey?: string },
 ): Promise<ServEvaluateResult> {
-  const apiKey = requireServApiKey();
+  const apiKey = opts?.apiKey?.trim() || requireServApiKey();
   const { servBaseUrl, servModel } = getProofEnvStatus();
   const client = new OpenAI({ apiKey, baseURL: servBaseUrl });
   const started = Date.now();
@@ -188,15 +189,18 @@ export async function evaluateWithServ(
   };
 }
 
-export async function reviewPolicyWithServ(input: {
-  policyText: string;
-  context: string;
-}): Promise<{
+export async function reviewPolicyWithServ(
+  input: {
+    policyText: string;
+    context: string;
+  },
+  opts?: { apiKey?: string },
+): Promise<{
   result: unknown;
   latencyMs: number;
   tokens?: { prompt?: number; completion?: number; total?: number };
 }> {
-  const apiKey = requireServApiKey();
+  const apiKey = opts?.apiKey?.trim() || requireServApiKey();
   const { servBaseUrl, servModel } = getProofEnvStatus();
   const client = new OpenAI({ apiKey, baseURL: servBaseUrl });
   const started = Date.now();

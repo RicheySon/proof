@@ -128,3 +128,18 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - Custom 404 → gate + home; form validation + honeypot; evaluate rate limit
 - Single CTA: landing/nav → `/gate`
 - [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md) + `npm run check:launch`
+
+## 2026-09-27 — All-around desk + navbar fix + deep README
+
+### Flaws fixed this pass
+
+- Landing nav pill right-shifted: `reveal-up` animation `translate: 0 0` overwrote centering — fixed with inset/margin center
+- Shared agent HTTP tenant collision — BYOK agent Bearer hashed to isolated workspace
+- Outline cookie button AA — explicit foreground color
+
+### Shipped
+
+- Integrations BYOK: connect/disconnect SERV, CDP, agent Bearer (AES-GCM sealed; never echoed)
+- Settings + Integrations: log out / new workspace
+- Folio README deepened: novelty, API depth, safety/access, flaws
+- `npm run test:stress` (1100 gate checks) + `test:all`

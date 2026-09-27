@@ -2,40 +2,45 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ProofConfigError } from "@/lib/proof/env.server";
 import { runEvaluateSpine } from "@/lib/proof/evaluate.server";
 import { checkRateLimit } from "@/lib/proof/rate-limit.server";
-import { ensureAgentTenant } from "@/lib/proof/store.server";
+import { resolveAgentTenant } from "@/lib/proof/store.server";
 import { EvaluateInputSchema } from "@/lib/proof/types";
 
 /**
  * Agent-callable evaluate endpoint.
- * Auth: Authorization: Bearer $PROOF_AGENT_API_KEY (server-only).
+ * Auth: Bearer token matching either
+ *   - a tenant BYOK agent key (isolated workspace), or
+ *   - shared env PROOF_AGENT_API_KEY (demo agent tenant).
  */
 export const Route = createFileRoute("/api/v1/evaluate")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
-          const expected = process.env.PROOF_AGENT_API_KEY?.trim();
-          if (!expected) {
-            return Response.json(
-              {
-                ok: false,
-                code: "CONFIG_REQUIRED",
-                message:
-                  "PROOF_AGENT_API_KEY is not configured. Agent HTTP evaluate fails closed until set.",
-              },
-              { status: 503 },
-            );
-          }
           const auth = request.headers.get("authorization") ?? "";
           const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-          if (!token || token !== expected) {
+          if (!token) {
             return Response.json(
-              { ok: false, code: "UNAUTHORIZED", message: "Invalid or missing Bearer token." },
+              { ok: false, code: "UNAUTHORIZED", message: "Missing Bearer token." },
               { status: 401 },
             );
           }
 
-          const limited = checkRateLimit(`agent:${token.slice(0, 12)}`, 60, 60_000);
+          const tenant = resolveAgentTenant(token);
+          if (!tenant) {
+            const envArmed = Boolean(process.env['PROOF_AGENT_API_KEY']?.trim());
+            return Response.json(
+              {
+                ok: false,
+                code: envArmed ? "UNAUTHORIZED" : "CONFIG_REQUIRED",
+                message: envArmed
+                  ? "Invalid Bearer token."
+                  : "No agent key configured. Connect one on Integrations (BYOK) or set PROOF_AGENT_API_KEY.",
+              },
+              { status: envArmed ? 401 : 503 },
+            );
+          }
+
+          const limited = checkRateLimit(`agent:${tenant.session.tenantId}`, 60, 60_000);
           if (!limited.ok) {
             return Response.json(
               {
@@ -56,7 +61,6 @@ export const Route = createFileRoute("/api/v1/evaluate")({
             );
           }
 
-          const tenant = ensureAgentTenant();
           const result = await runEvaluateSpine(tenant, parsed.data);
           return Response.json(result);
         } catch (error) {
@@ -75,14 +79,15 @@ export const Route = createFileRoute("/api/v1/evaluate")({
           ok: true,
           name: "PROOF evaluate",
           method: "POST",
-          auth: "Authorization: Bearer $PROOF_AGENT_API_KEY",
+          auth: "Authorization: Bearer <tenant BYOK agent key | PROOF_AGENT_API_KEY>",
           body: {
             amountUsd: "number",
             recipient: "0x…40 hex",
             intent: "string",
             idempotencyKey: "string ≥8",
           },
-          honesty: "Base Sepolia testnet · fail-closed · no mock hashes",
+          honesty:
+            "Base Sepolia testnet · fail-closed · no mock hashes · tenant BYOK keys isolate workspaces",
         }),
     },
   },

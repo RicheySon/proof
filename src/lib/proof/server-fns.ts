@@ -5,8 +5,17 @@ import { runEvaluateSpine } from "./evaluate.server";
 import { checkRateLimit } from "./rate-limit.server";
 import { reviewPolicyWithServ } from "./serv.server";
 import {
+  clearTenantAgentKey,
+  clearTenantCdp,
+  clearTenantServKey,
   ensureTenantSession,
+  getByokPublicStatus,
   listReceipts,
+  resetTenantSession,
+  resolveServApiKey,
+  saveTenantAgentKey,
+  saveTenantCdp,
+  saveTenantServKey,
   spentTodayUsd,
   tryEnsureTenantSession,
   updatePolicy,
@@ -29,18 +38,32 @@ export const getIntegrationStatus = createServerFn({ method: "GET" }).handler(as
   const env = getProofEnvStatus();
   const session = tryEnsureTenantSession();
   const spent = session.ok ? spentTodayUsd(session.data) : 0;
+  const byok = session.ok
+    ? getByokPublicStatus(session.data)
+    : {
+        serv: env.servConfigured ? ("env" as const) : ("none" as const),
+        cdp: env.cdpConfigured ? ("env" as const) : ("none" as const),
+        agentApi: process.env['PROOF_AGENT_API_KEY']?.trim()
+          ? ("env" as const)
+          : ("none" as const),
+        spenderAddress: process.env['CDP_EVM_ADDRESS']?.trim() || null,
+        servHint: null,
+      };
   return {
     env,
     sessionReady: session.ok,
     sessionError: session.ok ? null : session.error.message,
-    demoPayee: process.env.PROOF_DEMO_PAYEE?.trim() || null,
-    spenderAddress: process.env.CDP_EVM_ADDRESS?.trim() || null,
+    tenantId: session.ok ? session.data.session.tenantId : null,
+    orgName: session.ok ? session.data.session.orgName : null,
+    demoPayee: process.env['PROOF_DEMO_PAYEE']?.trim() || null,
+    spenderAddress: byok.spenderAddress,
     spentTodayUsd: spent,
-    agentApiConfigured: Boolean(process.env.PROOF_AGENT_API_KEY?.trim()),
+    agentApiConfigured: byok.agentApi !== "none",
+    byok,
     servTools: ["serv_prompt_guard", "serv_shadow_agent"],
     cdpRail: "Bearer JWT + X-Wallet-Auth · CDP REST send/transaction (jose + viem)",
     honesty:
-      "Base Sepolia testnet only. Not financial advice. No unhackable claims. Missing secrets fail closed — no mock transfers. Idempotency is per-instance memory on serverless (honest limit).",
+      "Base Sepolia testnet only. Not financial advice. No unhackable claims. Missing secrets fail closed — no mock transfers. Tenant BYOK keys are AES-GCM sealed server-side and never echoed back. Idempotency is per-instance memory on serverless (honest limit).",
   };
 });
 
@@ -97,14 +120,14 @@ export const reviewPolicy = createServerFn({ method: "POST" })
   .validator(ReviewInputSchema)
   .handler(async ({ data }) => {
     try {
-      const env = getProofEnvStatus();
-      if (!env.servConfigured) {
+      const tenant = ensureTenantSession();
+      const servKey = resolveServApiKey(tenant);
+      if (!servKey) {
         throw new ProofConfigError(
-          "SERV_API_KEY is not configured. Reviewer analysis requires live SERV — no mock reviews.",
+          "No SERV key. Connect yours on Integrations, or set SERV_API_KEY for the shared demo.",
         );
       }
-      ensureTenantSession();
-      const reviewed = await reviewPolicyWithServ(data);
+      const reviewed = await reviewPolicyWithServ(data, { apiKey: servKey });
       const parsed = ReviewResultSchema.parse(reviewed.result);
       return {
         ok: true as const,
@@ -146,3 +169,94 @@ export const updateOrgSettings = createServerFn({ method: "POST" })
       return toClientError(error);
     }
   });
+
+export const connectServKey = createServerFn({ method: "POST" })
+  .validator(z.object({ apiKey: z.string().min(8).max(500) }))
+  .handler(async ({ data }) => {
+    try {
+      const tenant = ensureTenantSession();
+      saveTenantServKey(tenant, data.apiKey);
+      return { ok: true as const, byok: getByokPublicStatus(tenant) };
+    } catch (error) {
+      return toClientError(error);
+    }
+  });
+
+export const disconnectServKey = createServerFn({ method: "POST" }).handler(async () => {
+  try {
+    const tenant = ensureTenantSession();
+    clearTenantServKey(tenant);
+    return { ok: true as const, byok: getByokPublicStatus(tenant) };
+  } catch (error) {
+    return toClientError(error);
+  }
+});
+
+export const connectCdpKeys = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      apiKeyId: z.string().min(4).max(200),
+      apiKeySecret: z.string().min(8).max(4000),
+      walletSecret: z.string().min(8).max(4000),
+      evmAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+    }),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const tenant = ensureTenantSession();
+      saveTenantCdp(tenant, data);
+      return { ok: true as const, byok: getByokPublicStatus(tenant) };
+    } catch (error) {
+      return toClientError(error);
+    }
+  });
+
+export const disconnectCdpKeys = createServerFn({ method: "POST" }).handler(async () => {
+  try {
+    const tenant = ensureTenantSession();
+    clearTenantCdp(tenant);
+    return { ok: true as const, byok: getByokPublicStatus(tenant) };
+  } catch (error) {
+    return toClientError(error);
+  }
+});
+
+export const connectAgentKey = createServerFn({ method: "POST" })
+  .validator(z.object({ apiKey: z.string().min(16).max(200) }))
+  .handler(async ({ data }) => {
+    try {
+      const tenant = ensureTenantSession();
+      saveTenantAgentKey(tenant, data.apiKey);
+      return {
+        ok: true as const,
+        byok: getByokPublicStatus(tenant),
+        note: "Store this Bearer token now — PROOF only keeps a hash. Use it on POST /api/v1/evaluate.",
+      };
+    } catch (error) {
+      return toClientError(error);
+    }
+  });
+
+export const disconnectAgentKey = createServerFn({ method: "POST" }).handler(async () => {
+  try {
+    const tenant = ensureTenantSession();
+    clearTenantAgentKey(tenant);
+    return { ok: true as const, byok: getByokPublicStatus(tenant) };
+  } catch (error) {
+    return toClientError(error);
+  }
+});
+
+export const resetWorkspace = createServerFn({ method: "POST" }).handler(async () => {
+  try {
+    const tenant = resetTenantSession();
+    return {
+      ok: true as const,
+      tenantId: tenant.session.tenantId,
+      byok: getByokPublicStatus(tenant),
+      message: "New workspace session issued. Prior receipts and BYOK for this cookie are gone.",
+    };
+  } catch (error) {
+    return toClientError(error);
+  }
+});

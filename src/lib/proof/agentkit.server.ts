@@ -7,6 +7,13 @@ export type TransferRequest = {
   amountUsd: number;
   recipient: string;
   receiptId: string;
+  /** Tenant BYOK override — falls back to env CDP_* when omitted. */
+  credentials?: {
+    apiKeyId: string;
+    apiKeySecret: string;
+    walletSecret: string;
+    evmAddress: string;
+  };
 };
 
 export type TransferResult = {
@@ -146,9 +153,15 @@ async function readNonce(address: string): Promise<number> {
  * Cloudflare-safe stack: jose + viem + fetch. No mock hashes.
  */
 export async function executeAgentKitTransfer(request: TransferRequest): Promise<TransferResult> {
-  const secrets = requireCdpSecrets();
+  const secrets = request.credentials
+    ? {
+        apiKeyId: request.credentials.apiKeyId,
+        apiKeySecret: request.credentials.apiKeySecret,
+        walletSecret: request.credentials.walletSecret,
+      }
+    : requireCdpSecrets();
   const { network } = getProofEnvStatus();
-  const from = process.env.CDP_EVM_ADDRESS?.trim();
+  const from = request.credentials?.evmAddress?.trim() || process.env['CDP_EVM_ADDRESS']?.trim();
 
   if (network !== "base-sepolia") {
     throw new ProofConfigError(
@@ -157,7 +170,7 @@ export async function executeAgentKitTransfer(request: TransferRequest): Promise
   }
   if (!from || !/^0x[a-fA-F0-9]{40}$/.test(from)) {
     throw new ProofConfigError(
-      "CDP_EVM_ADDRESS must be set to the funded 0x account used for Base Sepolia transfers.",
+      "CDP EVM address must be a funded 0x account for Base Sepolia transfers (tenant BYOK or CDP_EVM_ADDRESS).",
     );
   }
   if (!/^0x[a-fA-F0-9]{40}$/.test(request.recipient)) {

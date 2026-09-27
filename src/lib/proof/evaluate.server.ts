@@ -7,6 +7,8 @@ import {
   addReceipt,
   findReceiptByIdempotency,
   getActivePolicy,
+  resolveCdpSecrets,
+  resolveServApiKey,
   spentTodayUsd,
   type TenantData,
 } from "./store.server";
@@ -40,9 +42,10 @@ export async function runEvaluateSpine(
 ): Promise<EvaluateSuccess> {
   const started = Date.now();
   const env = getProofEnvStatus();
-  if (!env.servConfigured) {
+  const servKey = resolveServApiKey(tenant);
+  if (!servKey) {
     throw new ProofConfigError(
-      "SERV_API_KEY is not configured. Live evaluation is required — no mock decisions.",
+      "No SERV key for this workspace. Connect your key on Integrations, or set SERV_API_KEY for the shared demo.",
     );
   }
 
@@ -83,7 +86,7 @@ export async function runEvaluateSpine(
     };
   }
 
-  const serv = await evaluateWithServ(data, policy);
+  const serv = await evaluateWithServ(data, policy, { apiKey: servKey });
   let decision = serv.decision.decision;
   let rule: RuleCode = decision === "ALLOW" ? "POLICY_ALLOW" : "SERV_DENY";
   let shadow = serv.shadow;
@@ -109,9 +112,10 @@ export async function runEvaluateSpine(
 
   let txHash: string | undefined;
   let transferState: "locked" | "executed" | "config_required" | "failed" = "locked";
+  const cdp = resolveCdpSecrets(tenant);
 
   if (decision === "ALLOW") {
-    if (!env.cdpConfigured) {
+    if (!cdp) {
       decision = "DENY";
       rule = "CONFIG_REQUIRED";
       transferState = "config_required";
@@ -121,6 +125,7 @@ export async function runEvaluateSpine(
           amountUsd: data.amountUsd,
           recipient: data.recipient,
           receiptId: "pending",
+          credentials: cdp,
         });
         txHash = transfer.txHash;
         transferState = "executed";

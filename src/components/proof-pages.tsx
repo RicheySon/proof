@@ -33,7 +33,7 @@ import { AppShell, MetaPill } from "./app-shell";
 import { ProofLogo } from "./proof-logo";
 import { Button } from "./ui/button";
 import { useProofDemo, demoDenyAddress, demoPayeeAddress, type Decision } from "@/lib/proof-demo";
-import { reviewPolicy } from "@/lib/proof/server-fns";
+import { reviewPolicy, connectServKey, disconnectServKey, connectCdpKeys, disconnectCdpKeys, connectAgentKey, disconnectAgentKey, resetWorkspace, updateOrgSettings } from "@/lib/proof/server-fns";
 import type { Receipt, ReviewResult } from "@/lib/proof/types";
 import { DEFAULT_POLICY } from "@/lib/proof/types";
 
@@ -999,82 +999,286 @@ function Metric({
 }
 
 export function IntegrationsPage() {
-  const { status } = useProofDemo();
-  const serv = status?.env.servConfigured;
-  const cdp = status?.env.cdpConfigured;
-  const session = status?.sessionReady;
-  const integrations = [
-    {
-      name: "SERV Reasoning",
-      desc: `${status?.env.servModel ?? "gpt-5.4-mini-serv-multipath"} · tools ${
-        status?.servTools?.join(", ") ?? "serv_prompt_guard, serv_shadow_agent"
-      }`,
-      status: serv ? "Connected" : "Key required",
-      tone: serv ? "live" : "need",
-      icon: <Sparkles />,
-    },
-    {
-      name: "AgentKit / CDP",
-      desc: status?.cdpRail ?? "Bearer JWT + X-Wallet-Auth · Base Sepolia send",
-      status: cdp ? "Connected" : "Key required",
-      tone: cdp ? "live" : "need",
-      icon: <CircleDollarSign />,
-    },
-    {
-      name: "Tenant session",
-      desc: "Signed httpOnly cookie. No localStorage receipts.",
-      status: session ? "Ready" : "Session secret required",
-      tone: session ? "live" : "need",
-      icon: <LockKeyhole />,
-    },
-    {
-      name: "Agent HTTP API",
-      desc: "POST /api/v1/evaluate · Bearer PROOF_AGENT_API_KEY",
-      status: status?.agentApiConfigured ? "Armed" : "Key optional",
-      tone: status?.agentApiConfigured ? "live" : "need",
-      icon: <FileCheck2 />,
-    },
-    {
-      name: "Base Sepolia",
-      desc: `Spender ${status?.spenderAddress?.slice(0, 10) ?? "—"}… · payee ${
-        status?.demoPayee?.slice(0, 10) ?? "—"
-      }…`,
-      status: "Live testnet",
-      tone: "testnet",
-      icon: <ExternalLink />,
-    },
-    {
-      name: "IXS Vault",
-      desc: "Parked — API access unverified.",
-      status: "Parked",
-      tone: "parked",
-      icon: <LockKeyhole />,
-    },
-    {
-      name: "RH MCP",
-      desc: "Parked — outside submission path.",
-      status: "Parked",
-      tone: "parked",
-      icon: <FileCheck2 />,
-    },
-  ];
+  const { status, refresh, loading } = useProofDemo();
+  const byok = status?.byok;
+  const [servKey, setServKey] = useState("");
+  const [agentKey, setAgentKey] = useState("");
+  const [cdp, setCdp] = useState({
+    apiKeyId: "",
+    apiKeySecret: "",
+    walletSecret: "",
+    evmAddress: "",
+  });
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const sourceLabel = (s: "tenant" | "env" | "none" | undefined) =>
+    s === "tenant" ? "Your keys" : s === "env" ? "Shared demo" : "Not connected";
+
+  const toneFor = (s: "tenant" | "env" | "none" | undefined) =>
+    s === "none" ? "need" : s === "tenant" ? "live" : "testnet";
+
+  async function run(label: string, fn: () => Promise<void>) {
+    setBusy(label);
+    try {
+      await fn();
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <AppShell
       title="Integrations"
-      eyebrow="Decision infrastructure"
-      action={<MetaPill>{status?.honesty ? "Honest status" : "Loading"}</MetaPill>}
+      eyebrow="Bring your own keys · shared demo fallback"
+      action={
+        <MetaPill>
+          {status?.tenantId ? `tenant ${status.tenantId.slice(0, 14)}…` : "Loading"}
+        </MetaPill>
+      }
     >
-      <section className="surface" style={{ marginBottom: "1.25rem", padding: "1.25rem" }}>
+      <section className="surface byok-panel">
+        <h2>Your workspace</h2>
+        <p>
+          Every browser gets a signed httpOnly session. Connect your own SERV / CDP / agent Bearer
+          and the gate uses <strong>your</strong> keys. Leave blank to use the shared demo env when
+          the operator armed it. Keys are AES-GCM sealed server-side and never echoed back.
+        </p>
+        <p className="byok-honesty">{status?.honesty}</p>
+      </section>
+
+      <div className="integration-grid byok-grid">
+        <section className="surface integration-card byok-card">
+          <div className="integration-icon">
+            <Sparkles />
+          </div>
+          <div>
+            <h2>SERV Reasoning</h2>
+            <p>
+              Multipath + PromptGuard + Shadow. Source:{" "}
+              <strong>{sourceLabel(byok?.serv)}</strong>
+              {byok?.servHint ? ` (${byok.servHint})` : ""}
+            </p>
+          </div>
+          <span className={`integration-status is-${toneFor(byok?.serv)}`}>
+            {sourceLabel(byok?.serv)}
+          </span>
+          <label className="field byok-field">
+            <span>Your SERV API key</span>
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder="sk-… from console.openserv.ai"
+              value={servKey}
+              onChange={(e) => setServKey(e.target.value)}
+            />
+          </label>
+          <div className="byok-actions">
+            <Button
+              disabled={busy !== null || servKey.trim().length < 8}
+              onClick={() =>
+                void run("serv", async () => {
+                  const res = await connectServKey({ data: { apiKey: servKey } });
+                  if (!res.ok) throw new Error(res.message);
+                  setServKey("");
+                  toast.success("SERV key sealed to this workspace");
+                })
+              }
+            >
+              {busy === "serv" ? "Saving…" : "Connect SERV"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy !== null || byok?.serv !== "tenant"}
+              onClick={() =>
+                void run("serv-clear", async () => {
+                  const res = await disconnectServKey();
+                  if (!res.ok) throw new Error(res.message);
+                  toast.message("Tenant SERV key cleared — demo env may still apply");
+                })
+              }
+            >
+              Disconnect
+            </Button>
+          </div>
+        </section>
+
+        <section className="surface integration-card byok-card">
+          <div className="integration-icon">
+            <CircleDollarSign />
+          </div>
+          <div>
+            <h2>AgentKit / CDP</h2>
+            <p>
+              jose Bearer + X-Wallet-Auth · Base Sepolia. Source:{" "}
+              <strong>{sourceLabel(byok?.cdp)}</strong>
+              {byok?.spenderAddress
+                ? ` · spender ${byok.spenderAddress.slice(0, 8)}…${byok.spenderAddress.slice(-4)}`
+                : ""}
+            </p>
+          </div>
+          <span className={`integration-status is-${toneFor(byok?.cdp)}`}>
+            {sourceLabel(byok?.cdp)}
+          </span>
+          <div className="byok-cdp-fields">
+            <label className="field">
+              <span>API key id</span>
+              <input
+                autoComplete="off"
+                value={cdp.apiKeyId}
+                onChange={(e) => setCdp({ ...cdp, apiKeyId: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>API key secret</span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={cdp.apiKeySecret}
+                onChange={(e) => setCdp({ ...cdp, apiKeySecret: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Wallet secret</span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={cdp.walletSecret}
+                onChange={(e) => setCdp({ ...cdp, walletSecret: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>EVM address (spender)</span>
+              <input
+                autoComplete="off"
+                placeholder="0x…"
+                value={cdp.evmAddress}
+                onChange={(e) => setCdp({ ...cdp, evmAddress: e.target.value })}
+              />
+            </label>
+          </div>
+          <div className="byok-actions">
+            <Button
+              disabled={busy !== null}
+              onClick={() =>
+                void run("cdp", async () => {
+                  const res = await connectCdpKeys({ data: cdp });
+                  if (!res.ok) throw new Error(res.message);
+                  setCdp({ apiKeyId: "", apiKeySecret: "", walletSecret: "", evmAddress: "" });
+                  toast.success("CDP credentials sealed to this workspace");
+                })
+              }
+            >
+              {busy === "cdp" ? "Saving…" : "Connect CDP"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy !== null || byok?.cdp !== "tenant"}
+              onClick={() =>
+                void run("cdp-clear", async () => {
+                  const res = await disconnectCdpKeys();
+                  if (!res.ok) throw new Error(res.message);
+                  toast.message("Tenant CDP cleared");
+                })
+              }
+            >
+              Disconnect
+            </Button>
+          </div>
+        </section>
+
+        <section className="surface integration-card byok-card">
+          <div className="integration-icon">
+            <FileCheck2 />
+          </div>
+          <div>
+            <h2>Your agent Bearer</h2>
+            <p>
+              POST /api/v1/evaluate with this token hits <em>your</em> tenant (isolated receipts).
+              Source: <strong>{sourceLabel(byok?.agentApi)}</strong>. We store a SHA-256 hash only.
+            </p>
+          </div>
+          <span className={`integration-status is-${toneFor(byok?.agentApi)}`}>
+            {sourceLabel(byok?.agentApi)}
+          </span>
+          <label className="field byok-field">
+            <span>Agent API key (≥16 chars — generate one you control)</span>
+            <input
+              type="password"
+              autoComplete="off"
+              value={agentKey}
+              onChange={(e) => setAgentKey(e.target.value)}
+              placeholder="paste once — we never show it again"
+            />
+          </label>
+          <div className="byok-actions">
+            <Button
+              disabled={busy !== null || agentKey.trim().length < 16}
+              onClick={() =>
+                void run("agent", async () => {
+                  const res = await connectAgentKey({ data: { apiKey: agentKey } });
+                  if (!res.ok) throw new Error(res.message);
+                  toast.success("Agent key hashed — copy it from your password manager now");
+                  setAgentKey("");
+                })
+              }
+            >
+              {busy === "agent" ? "Saving…" : "Connect agent key"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy !== null || byok?.agentApi !== "tenant"}
+              onClick={() =>
+                void run("agent-clear", async () => {
+                  const res = await disconnectAgentKey();
+                  if (!res.ok) throw new Error(res.message);
+                  toast.message("Tenant agent key cleared");
+                })
+              }
+            >
+              Disconnect
+            </Button>
+          </div>
+        </section>
+
+        <section className="surface integration-card">
+          <div className="integration-icon">
+            <LockKeyhole />
+          </div>
+          <div>
+            <h2>Tenant session</h2>
+            <p>Signed httpOnly cookie. No localStorage receipts. Reset issues a fresh workspace.</p>
+          </div>
+          <span className={`integration-status is-${status?.sessionReady ? "live" : "need"}`}>
+            {status?.sessionReady ? "Ready" : "Session secret required"}
+          </span>
+          <Button
+            variant="outline"
+            disabled={busy !== null || loading}
+            onClick={() =>
+              void run("reset", async () => {
+                const res = await resetWorkspace();
+                if (!res.ok) throw new Error(res.message);
+                toast.success(res.message);
+              })
+            }
+          >
+            {busy === "reset" ? "Resetting…" : "Log out / new workspace"}
+          </Button>
+        </section>
+      </div>
+
+      <section className="surface" style={{ marginTop: "1.25rem", padding: "1.25rem" }}>
         <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Network matrix</h2>
         <p style={{ marginTop: "0.35rem", opacity: 0.8 }}>
-          What is load-bearing vs parked. Spent today (UTC): $
-          {(status?.spentTodayUsd ?? 0).toFixed(2)}.
+          Load-bearing vs parked. Spent today (UTC): ${(status?.spentTodayUsd ?? 0).toFixed(2)}.
         </p>
         <div className="integration-grid" style={{ marginTop: "1rem" }}>
           {[
-            ["SERV Multipath + tools", serv ? "live" : "off"],
-            ["CDP JWT rail", cdp ? "live" : "off"],
+            ["SERV Multipath + tools", byok?.serv === "none" ? "off" : byok?.serv ?? "…"],
+            ["CDP JWT rail", byok?.cdp === "none" ? "off" : byok?.cdp ?? "…"],
             ["Code gate", "live"],
             ["Idempotency store", "per-instance"],
             ["IXS / RH", "parked"],
@@ -1086,29 +1290,19 @@ export function IntegrationsPage() {
           ))}
         </div>
       </section>
-      <div className="integration-grid">
-        {integrations.map((item) => (
-          <section className="surface integration-card" key={item.name}>
-            <div className="integration-icon">{item.icon}</div>
-            <div>
-              <h2>{item.name}</h2>
-              <p>{item.desc}</p>
-            </div>
-            <span className={`integration-status is-${item.tone}`}>{item.status}</span>
-            <Button variant="outline" disabled={item.tone === "parked"}>
-              {item.tone === "parked" ? "Unavailable" : "Env-backed"}
-            </Button>
-          </section>
-        ))}
-      </div>
     </AppShell>
   );
 }
 
 export function SettingsPage() {
-  const { status } = useProofDemo();
-  const [orgName, setOrgName] = useState("PROOF Lab");
+  const { status, refresh } = useProofDemo();
+  const [orgName, setOrgName] = useState(status?.orgName ?? "PROOF Lab");
   const [publicReceipts, setPublicReceipts] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (status?.orgName) setOrgName(status.orgName);
+  }, [status?.orgName]);
 
   return (
     <AppShell
@@ -1121,7 +1315,10 @@ export function SettingsPage() {
           <div className="section-head">
             <div>
               <h2>Organization</h2>
-              <p>Tenant identity for receipts.</p>
+              <p>
+                Tenant {status?.tenantId ?? "—"} · session cookie workspace. Connect keys on
+                Integrations.
+              </p>
             </div>
           </div>
           <div className="field-grid">
@@ -1151,18 +1348,53 @@ export function SettingsPage() {
           <SettingToggle
             checked={publicReceipts}
             onChange={setPublicReceipts}
-            title="Shareable receipt IDs"
-            detail="Receipt bodies stay on the server; IDs may be shared."
+            title="Show Basescan links on ALLOW"
+            detail="Tx hashes are public on Base Sepolia when a transfer executes."
           />
-        </section>
-        <section className="surface disclosure">
-          <LockKeyhole />
-          <div>
-            <h2>Honesty</h2>
-            <p>
-              Base Sepolia is a test network. Not financial advice. No “unhackable” claims. Missing
-              SERV or CDP secrets fail closed — never invent ALLOW or transaction hashes.
-            </p>
+          <div className="byok-actions" style={{ marginTop: "1rem" }}>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const res = await updateOrgSettings({
+                      data: { orgName, publicReceipts, failClosed: true },
+                    });
+                    if (!res.ok) throw new Error(res.message);
+                    toast.success("Settings saved");
+                    await refresh();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              Save settings
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const res = await resetWorkspace();
+                    if (!res.ok) throw new Error(res.message);
+                    toast.success(res.message);
+                    await refresh();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              Log out / new workspace
+            </Button>
           </div>
         </section>
       </div>
@@ -1202,7 +1434,10 @@ export function ReviewPage() {
   const [phase, setPhase] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<ReviewResult | null>(null);
-  const servReady = Boolean(status?.env.servConfigured);
+  const servReady =
+    status?.byok?.serv === "tenant" ||
+    status?.byok?.serv === "env" ||
+    Boolean(status?.env.servConfigured);
 
   const run = async () => {
     setPhase("loading");
@@ -1256,7 +1491,10 @@ export function ReviewPage() {
           {!servReady && (
             <div className="result-callout is-deny">
               <strong>Connection required</strong>
-              <p>SERV is not configured. Reviewer will not invent findings.</p>
+              <p>
+                Connect a SERV key on Integrations (or arm the shared demo env). Reviewer will not
+                invent findings.
+              </p>
             </div>
           )}
           {phase === "error" && error && (

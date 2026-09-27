@@ -11,6 +11,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:gate": "tsx scripts/test-code-gate.ts",
+    "test:stress": "tsx scripts/stress-gate.ts",
+    "test:all": "npm run test:gate && npm run test:stress && npm run check:launch",
     "smoke:serv": "tsx --env-file=.env scripts/smoke-serv.ts",
     "smoke:cdp-auth": "tsx --env-file=.env scripts/smoke-cdp-auth.ts",
     "smoke:full": "tsx --env-file=.env scripts/smoke-full-spine.ts",

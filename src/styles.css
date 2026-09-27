@@ -184,11 +184,15 @@
   overflow-x: clip;
 }
 .landing-nav {
+  /* Center with inset+margin — NOT translate. reveal-up animation
+     writes translate: 0 0 (fill-mode both) and was shoving the pill
+     to the right half of the viewport (left:50% with no -50% offset). */
   position: absolute;
   z-index: 20;
   top: 28px;
-  left: 50%;
-  translate: -50% 0;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
   width: min(880px, calc(100% - 24px));
   height: 52px;
   padding: 0 9px 0 15px;
@@ -388,6 +392,15 @@
 .cookie-banner__actions{display:flex;flex-wrap:wrap;gap:8px}
 .cookie-banner__actions button{color:var(--foreground)}
 .cookie-banner__actions button:last-child{color:var(--primary-foreground)}
+.byok-panel{margin-bottom:1.25rem;padding:1.25rem}
+.byok-panel h2{margin:0 0 .35rem;font-size:1.1rem}
+.byok-panel p{margin:.35rem 0 0;color:var(--muted-foreground);font-size:13px;line-height:1.45}
+.byok-honesty{font-size:12px!important;opacity:.85}
+.byok-grid{margin-top:.25rem}
+.byok-card{grid-template-columns:42px 1fr auto!important;align-items:start}
+.byok-card .byok-field,.byok-card .byok-cdp-fields,.byok-card .byok-actions{grid-column:1 / -1}
+.byok-cdp-fields{display:grid;gap:10px;margin-top:4px}
+.byok-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .hp-field{position:absolute!important;left:-10000px!important;width:1px;height:1px;overflow:hidden}
 .legal-page{min-height:100vh;background:var(--background);color:var(--foreground)}
 .legal-page__nav{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px;border-bottom:1px solid var(--border)}
