@@ -1,0 +1,12 @@
+---
+description: Multitenant safe sessions; no localStorage for auth or receipts
+alwaysApply: true
+---
+
+# Sessions and tenancy
+
+- Auth and receipts live on the **server**, scoped by tenant id.
+- Prefer httpOnly, Secure, SameSite cookies for session ids.
+- No `localStorage` / `sessionStorage` for receipts, policies, or auth tokens.
+- Validate every mutation against the session tenant before read/write.
+- Idempotency keys are tenant-scoped to block replayed spends.

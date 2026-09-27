@@ -1,3 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsPage } from "@/components/proof-pages";
-export const Route = createFileRoute("/settings")({ head: () => ({ meta: [{ title: "Settings — PROOF" }, { name: "description", content: "Configure demo identity, receipt visibility, and fail-closed defaults." }, { property: "og:title", content: "Settings — PROOF" }, { property: "og:description", content: "Configure PROOF safety defaults." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: SettingsPage });
+export const Route = createFileRoute("/settings")({
+  head: () => ({
+    meta: [
+      { title: "Settings — PROOF" },
+      {
+        name: "description",
+        content: "Configure demo identity, receipt visibility, and fail-closed defaults.",
+      },
+      { property: "og:title", content: "Settings — PROOF" },
+      { property: "og:description", content: "Configure PROOF safety defaults." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: SettingsPage,
+});

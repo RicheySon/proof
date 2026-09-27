@@ -1,3 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IntegrationsPage } from "@/components/proof-pages";
-export const Route = createFileRoute("/integrations")({ head: () => ({ meta: [{ title: "Integrations — PROOF" }, { name: "description", content: "View the SERV, AgentKit, CDP, and Base Sepolia demo stack." }, { property: "og:title", content: "Integrations — PROOF" }, { property: "og:description", content: "The decision infrastructure behind PROOF." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: IntegrationsPage });
+export const Route = createFileRoute("/integrations")({
+  head: () => ({
+    meta: [
+      { title: "Integrations — PROOF" },
+      {
+        name: "description",
+        content: "View the SERV, AgentKit, CDP, and Base Sepolia demo stack.",
+      },
+      { property: "og:title", content: "Integrations — PROOF" },
+      { property: "og:description", content: "The decision infrastructure behind PROOF." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: IntegrationsPage,
+});

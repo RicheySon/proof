@@ -1,0 +1,18 @@
+---
+description: SERV Multipath + Shadow + PromptGuard then code gate then AgentKit
+globs: src/server/**/*,src/lib/proof/**/*
+alwaysApply: false
+---
+
+# SERV → code gate → AgentKit
+
+Order is mandatory:
+
+1. SERV model with Multipath (`*-serv-multipath`) + structured ALLOW/DENY schema
+2. Tools: `serv_shadow_agent` (hint = policy caps/allowlist/abstain) + `serv_prompt_guard`
+3. Validate JSON in app; invalid/refuse → DENY
+4. Deterministic code gate: max amount, allowlist, idempotency
+5. Only then AgentKit transfer on Base Sepolia
+6. Persist receipt (prompt version, shadow, tokens, latency, cost, rule, tx)
+
+Base URL: `https://inference-api.openserv.ai/v1`. System prompt required.

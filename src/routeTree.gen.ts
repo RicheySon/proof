@@ -15,6 +15,7 @@ import { Route as GateRouteImport } from './routes/gate'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as ReceiptsRouteImport } from './routes/receipts'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const ReceiptsRoute = ReceiptsRouteImport.update({
   path: '/receipts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/policies': typeof PoliciesRoute
   '/receipts': typeof ReceiptsRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/policies': typeof PoliciesRoute
   '/receipts': typeof ReceiptsRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/policies': typeof PoliciesRoute
   '/receipts': typeof ReceiptsRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/policies'
     | '/receipts'
+    | '/review'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/policies'
     | '/receipts'
+    | '/review'
     | '/settings'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/policies'
     | '/receipts'
+    | '/review'
     | '/settings'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   PoliciesRoute: typeof PoliciesRoute
   ReceiptsRoute: typeof ReceiptsRoute
+  ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReceiptsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   PoliciesRoute: PoliciesRoute,
   ReceiptsRoute: ReceiptsRoute,
+  ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

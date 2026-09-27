@@ -1,3 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { GatePage } from "@/components/proof-pages";
-export const Route = createFileRoute("/gate")({ head: () => ({ meta: [{ title: "Spend Gate — PROOF" }, { name: "description", content: "Evaluate an agent transfer against a fail-closed spend policy." }, { property: "og:title", content: "Spend Gate — PROOF" }, { property: "og:description", content: "Prove policy before an agent transfer can run." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: GatePage });
+export const Route = createFileRoute("/gate")({
+  head: () => ({
+    meta: [
+      { title: "Spend Gate — PROOF" },
+      {
+        name: "description",
+        content: "Evaluate an agent transfer against a fail-closed spend policy.",
+      },
+      { property: "og:title", content: "Spend Gate — PROOF" },
+      { property: "og:description", content: "Prove policy before an agent transfer can run." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: GatePage,
+});

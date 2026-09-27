@@ -1,0 +1,12 @@
+---
+description: No mocks, no silent fallbacks; missing secrets fail closed
+alwaysApply: true
+---
+
+# No mocks / fail-closed
+
+- Never invent ALLOW/DENY, tx hashes, latency, or cost when providers are down.
+- Missing `SERV_API_KEY` or CDP secrets → explicit `CONFIG_REQUIRED` / connection-required UI.
+- Do not fall back to client heuristics (`amount <= 5`) or sessionStorage demo ledgers.
+- DENY and error paths must be as polished as ALLOW.
+- Shadow `hint` is advisory; caps, allowlist, and replay are enforced in server code.

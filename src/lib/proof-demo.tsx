@@ -1,69 +1,131 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  evaluateSpend,
+  getIntegrationStatus,
+  getPolicies,
+  getReceipts,
+  savePolicy,
+} from "@/lib/proof/server-fns";
+import type { Policy, Receipt } from "@/lib/proof/types";
+import { DEFAULT_POLICY } from "@/lib/proof/types";
 
 export type Decision = "ALLOW" | "DENY";
-export type Receipt = {
-  id: string;
-  decision: Decision;
-  amount: number;
-  recipient: string;
-  createdAt: string;
-  latency: number;
-  cost: number;
-  shadow: "PASS" | "FAIL";
-  tx?: string;
-};
 
-const seededReceipts: Receipt[] = [
-  { id: "prf_8F2K1A", decision: "DENY", amount: 50, recipient: "0x7A91…E204", createdAt: "Today, 10:42", latency: 842, cost: 0.0031, shadow: "FAIL" },
-  { id: "prf_6C9M4Q", decision: "ALLOW", amount: 2, recipient: "0x2F8B…91C0", createdAt: "Today, 10:38", latency: 716, cost: 0.0028, shadow: "PASS", tx: "0x8a74f2d39bd0c887a1f8d4e63c6f2c39" },
-  { id: "prf_1R7V3N", decision: "ALLOW", amount: 4.5, recipient: "0x2F8B…91C0", createdAt: "Yesterday, 16:12", latency: 781, cost: 0.0029, shadow: "PASS", tx: "0x9b13e721a49628ce53a8a31d6f74240a" },
-  { id: "prf_4T2J8L", decision: "DENY", amount: 12, recipient: "0x91C4…B702", createdAt: "Yesterday, 09:07", latency: 903, cost: 0.0034, shadow: "FAIL" },
-];
+type IntegrationStatus = Awaited<ReturnType<typeof getIntegrationStatus>>;
 
-type DemoContextValue = {
+type ProofContextValue = {
   receipts: Receipt[];
-  addReceipt: (receipt: Receipt) => void;
-  publicReceipts: boolean;
-  setPublicReceipts: (value: boolean) => void;
+  policies: Policy[];
+  activePolicy: Policy;
+  status: IntegrationStatus | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+  evaluate: (input: {
+    amountUsd: number;
+    recipient: string;
+    intent: string;
+    idempotencyKey: string;
+  }) => Promise<Awaited<ReturnType<typeof evaluateSpend>>>;
+  persistPolicy: (policy: Policy) => Promise<void>;
 };
 
-const DemoContext = createContext<DemoContextValue | undefined>(undefined);
+const ProofContext = createContext<ProofContextValue | undefined>(undefined);
 
 export function ProofDemoProvider({ children }: { children: ReactNode }) {
-  const [receipts, setReceipts] = useState<Receipt[]>(seededReceipts);
-  const [publicReceipts, setPublicReceipts] = useState(true);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [policies, setPolicies] = useState<Policy[]>([DEFAULT_POLICY]);
+  const [status, setStatus] = useState<IntegrationStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = window.sessionStorage.getItem("proof-demo-receipts");
-    if (stored) {
-      try {
-        setReceipts(JSON.parse(stored) as Receipt[]);
-      } catch {
-        window.sessionStorage.removeItem("proof-demo-receipts");
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const nextStatus = await getIntegrationStatus();
+      setStatus(nextStatus);
+      if (!nextStatus.sessionReady) {
+        setError(nextStatus.sessionError ?? "Session not ready");
+        setReceipts([]);
+        return;
       }
+      const [receiptResult, policyResult] = await Promise.all([getReceipts(), getPolicies()]);
+      if (receiptResult.ok) setReceipts(receiptResult.receipts);
+      else setError(receiptResult.message);
+      if (policyResult.ok) setPolicies(policyResult.policies);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const value = useMemo(() => ({
-    receipts,
-    publicReceipts,
-    setPublicReceipts,
-    addReceipt: (receipt: Receipt) => {
-      setReceipts((current) => {
-        const next = [receipt, ...current];
-        window.sessionStorage.setItem("proof-demo-receipts", JSON.stringify(next));
-        return next;
-      });
-    },
-  }), [receipts, publicReceipts]);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
-  return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
+  const evaluate = useCallback(
+    async (input: {
+      amountUsd: number;
+      recipient: string;
+      intent: string;
+      idempotencyKey: string;
+    }) => {
+      const result = await evaluateSpend({ data: input });
+      if (result.ok) {
+        setReceipts((current) => [
+          result.receipt,
+          ...current.filter((r) => r.id !== result.receipt.id),
+        ]);
+      }
+      return result;
+    },
+    [],
+  );
+
+  const persistPolicy = useCallback(async (policy: Policy) => {
+    const result = await savePolicy({ data: policy });
+    if (!result.ok) throw new Error(result.message);
+    setPolicies((current) => {
+      const idx = current.findIndex((p) => p.id === result.policy.id);
+      if (idx < 0) return [...current, result.policy];
+      const next = [...current];
+      next[idx] = result.policy;
+      return next;
+    });
+  }, []);
+
+  const value = useMemo<ProofContextValue>(
+    () => ({
+      receipts,
+      policies,
+      activePolicy: policies[0] ?? DEFAULT_POLICY,
+      status,
+      loading,
+      error,
+      refresh,
+      evaluate,
+      persistPolicy,
+    }),
+    [receipts, policies, status, loading, error, refresh, evaluate, persistPolicy],
+  );
+
+  return <ProofContext.Provider value={value}>{children}</ProofContext.Provider>;
 }
 
 export function useProofDemo() {
-  const context = useContext(DemoContext);
+  const context = useContext(ProofContext);
   if (!context) throw new Error("useProofDemo must be used inside ProofDemoProvider");
   return context;
 }
 
-export const shortAddress = "0x2F8B…91C0";
+export const shortAddress = "0x2F8B91C0";

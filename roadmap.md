@@ -1,7 +1,9 @@
 # Roadmap
 
-- [ ] Finish and verify the existing seven-page PROOF demo at desktop and mobile sizes.
-- [ ] Fix the landing layout clipping shown in the supplied screenshot.
-- [ ] Create favicon assets from the PROOF seal and wire complete metadata.
-- [ ] Add a reviewer policy-risk analysis page with policy/context inputs, clear connection state, and a provider-ready server integration for the user's gateway credentials.
-- [ ] Verify navigation, both spend outcomes, reviewer states, metadata, accessibility basics, and browser console.
+- [x] Memory docs, Cursor rules/skills, fail-closed server spine
+- [x] Wire favicons + site.webmanifest into root metadata
+- [x] Fix landing layout clipping (desktop + mobile)
+- [x] Reviewer policy-risk page (SERV live; connection-required without key)
+- [x] Production build + code-gate tests
+- [ ] Set SERV_API_KEY + CDP secrets and smoke DENY/ALLOW/replay on Base Sepolia
+- [ ] Console data collection ON + X post + form submit (28 Sep 2026 00:00 UTC)
