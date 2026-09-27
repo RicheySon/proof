@@ -18,6 +18,7 @@ Living ledger for judges and operators. Soft rule: never invent a green. Full ho
 | Env-only keys locked judges out of “try my stack” | Demo felt like a private operator console | Integrations BYOK: connect own SERV / CDP / agent Bearer; AES-GCM sealed with `SESSION_SECRET`; never echoed; env remains shared fallback |
 | **TRANSFER_FAILED burned the idempotency key** | Flaky CDP / missing wallet → DENY receipt locked the intent forever; retry impossible | Only bind idempotency when the intent was adjudicated (ALLOW / policy DENY / REPLAY). **`TRANSFER_FAILED` and `CONFIG_REQUIRED` do not bind** — retry after fix |
 | Cold start wiped BYOK connections | Serverless memory empty → “Connected” became “Shared demo / none” after recycle | Mirror sealed BYOK in signed httpOnly `proof_byok_v1` cookie; rebuild agent hash index on restore |
+| **No way to sign back in** | “Log out / new workspace” only destroyed identity — judges could not return to the same desk | Workspace **recovery key** auth: protect in Settings → sign out → `/login` restores deterministic session id (hash only stored). Honest: not OAuth/email; receipts still per-instance |
 | Serverless idempotency is per-instance | Cold starts can forget prior keys | Documented honesty on Integrations; Durable ledger = phase-2 |
 | Cost USD unknown from SERV | Temptation to invent pricing | Receipt shows tokens + **cost n/a from SERV** |
 | Quantum template still in root README | Judges see abandoned paste | Folio-style product README with diagrams + this ledger |

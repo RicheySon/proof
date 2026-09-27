@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as GateRouteImport } from './routes/gate'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReceiptsRouteImport } from './routes/receipts'
@@ -40,6 +41,11 @@ const GateRoute = GateRouteImport.update({
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PoliciesRoute = PoliciesRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/gate': typeof GateRoute
   '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
   '/policies': typeof PoliciesRoute
   '/privacy': typeof PrivacyRoute
   '/receipts': typeof ReceiptsRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/gate': typeof GateRoute
   '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
   '/policies': typeof PoliciesRoute
   '/privacy': typeof PrivacyRoute
   '/receipts': typeof ReceiptsRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/gate': typeof GateRoute
   '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
   '/policies': typeof PoliciesRoute
   '/privacy': typeof PrivacyRoute
   '/receipts': typeof ReceiptsRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/gate'
     | '/integrations'
+    | '/login'
     | '/policies'
     | '/privacy'
     | '/receipts'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/gate'
     | '/integrations'
+    | '/login'
     | '/policies'
     | '/privacy'
     | '/receipts'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/gate'
     | '/integrations'
+    | '/login'
     | '/policies'
     | '/privacy'
     | '/receipts'
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   GateRoute: typeof GateRoute
   IntegrationsRoute: typeof IntegrationsRoute
+  LoginRoute: typeof LoginRoute
   PoliciesRoute: typeof PoliciesRoute
   PrivacyRoute: typeof PrivacyRoute
   ReceiptsRoute: typeof ReceiptsRoute
@@ -214,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/policies': {
@@ -280,6 +300,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   GateRoute: GateRoute,
   IntegrationsRoute: IntegrationsRoute,
+  LoginRoute: LoginRoute,
   PoliciesRoute: PoliciesRoute,
   PrivacyRoute: PrivacyRoute,
   ReceiptsRoute: ReceiptsRoute,

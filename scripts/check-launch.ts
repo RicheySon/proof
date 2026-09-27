@@ -9,6 +9,7 @@ const paths = [
   "/gate",
   "/privacy",
   "/terms",
+  "/login",
   "/robots.txt",
   "/sitemap.xml",
   "/og.png",

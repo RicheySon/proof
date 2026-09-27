@@ -3,7 +3,7 @@
  * Keys never leave the server; client only sees connected/masked status.
  * Honest limit: sealed blobs live in per-instance memory (same as receipts).
  */
-import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { getSessionSecret } from "./env.server";
 
 function deriveKey(sessionSecret: string): Buffer {
@@ -33,6 +33,19 @@ export function openSecret(sealed: string): string {
 
 export function hashToken(token: string): string {
   return createHash("sha256").update(`proof-agent:${token}`).digest("hex");
+}
+
+/** Workspace recovery key → stable hash (never store the plain key). */
+export function hashWorkspaceKey(key: string): string {
+  return createHash("sha256").update(`proof-ws:${key.trim()}`).digest("hex");
+}
+
+/** Deterministic session id from recovery key + server secret (enables sign-in later). */
+export function sessionIdFromWorkspaceKey(key: string, sessionSecret: string): string {
+  return createHmac("sha256", sessionSecret)
+    .update(`proof-ws-sid:${key.trim()}`)
+    .digest("base64url")
+    .slice(0, 32);
 }
 
 export function safeEqual(a: string, b: string): boolean {

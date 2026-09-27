@@ -36,6 +36,11 @@ function PrivacyPage() {
           product to work.
         </li>
         <li>
+          <strong>Optional workspace recovery key</strong> — if you protect your workspace, we store
+          only a SHA-256 hash server-side so you can sign out and sign in later at `/login`. The plain
+          key is shown once and never stored.
+        </li>
+        <li>
           <strong>Spend intents you submit</strong> — amount, recipient, intent text, and idempotency
           key, stored as receipts in server memory for your session.
         </li>

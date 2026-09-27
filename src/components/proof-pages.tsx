@@ -33,7 +33,7 @@ import { AppShell, MetaPill } from "./app-shell";
 import { ProofLogo } from "./proof-logo";
 import { Button } from "./ui/button";
 import { useProofDemo, demoDenyAddress, demoPayeeAddress, type Decision } from "@/lib/proof-demo";
-import { reviewPolicy, connectServKey, disconnectServKey, connectCdpKeys, disconnectCdpKeys, connectAgentKey, disconnectAgentKey, resetWorkspace, updateOrgSettings } from "@/lib/proof/server-fns";
+import { reviewPolicy, connectServKey, disconnectServKey, connectCdpKeys, disconnectCdpKeys, connectAgentKey, disconnectAgentKey, resetWorkspace, updateOrgSettings, protectWorkspaceFn, signOutWorkspaceFn } from "@/lib/proof/server-fns";
 import type { Receipt, ReviewResult } from "@/lib/proof/types";
 import { DEFAULT_POLICY } from "@/lib/proof/types";
 
@@ -174,6 +174,7 @@ export function LandingPage() {
       </section>
       <footer className="site-footer">
         <Link to="/">PROOF</Link>
+        <Link to="/login">Sign in</Link>
         <Link to="/privacy">Privacy</Link>
         <Link to="/terms">Terms</Link>
         <Link to="/gate">Run the gate</Link>
@@ -1294,24 +1295,46 @@ export function IntegrationsPage() {
           </div>
           <div>
             <h2>Tenant session</h2>
-            <p>Signed httpOnly cookie. No localStorage receipts. Reset issues a fresh workspace.</p>
+            <p>
+              Mode: <strong>{status?.auth?.mode ?? "anonymous"}</strong>. Protect a recovery key in
+              Settings to sign out and sign back in at /login.
+            </p>
           </div>
           <span className={`integration-status is-${status?.sessionReady ? "live" : "need"}`}>
-            {status?.sessionReady ? "Ready" : "Session secret required"}
+            {status?.sessionReady ? "Signed in" : "Session secret required"}
           </span>
-          <Button
-            variant="outline"
-            disabled={busy !== null || loading}
-            onClick={() =>
-              void run("reset", async () => {
-                const res = await resetWorkspace();
-                if (!res.ok) throw new Error(res.message);
-                toast.success(res.message);
-              })
-            }
-          >
-            {busy === "reset" ? "Resetting…" : "Log out / new workspace"}
-          </Button>
+          <div className="byok-actions">
+            <Button asChild variant="outline">
+              <Link to="/login">Sign in</Link>
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy !== null || loading}
+              onClick={() =>
+                void run("signout", async () => {
+                  const res = await signOutWorkspaceFn();
+                  if (!res.ok) throw new Error(res.message);
+                  toast.success(res.message);
+                  window.location.href = "/login";
+                })
+              }
+            >
+              {busy === "signout" ? "Signing out…" : "Sign out"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy !== null || loading}
+              onClick={() =>
+                void run("reset", async () => {
+                  const res = await resetWorkspace();
+                  if (!res.ok) throw new Error(res.message);
+                  toast.success(res.message);
+                })
+              }
+            >
+              {busy === "reset" ? "Destroying…" : "Destroy workspace"}
+            </Button>
+          </div>
         </section>
       </div>
 
@@ -1344,6 +1367,7 @@ export function SettingsPage() {
   const [orgName, setOrgName] = useState(status?.orgName ?? "PROOF Lab");
   const [publicReceipts, setPublicReceipts] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [recoveryReveal, setRecoveryReveal] = useState<string | null>(null);
 
   useEffect(() => {
     if (status?.orgName) setOrgName(status.orgName);
@@ -1352,18 +1376,105 @@ export function SettingsPage() {
   return (
     <AppShell
       title="Settings"
-      eyebrow="Organization"
-      action={<MetaPill>Fail-closed locked on</MetaPill>}
+      eyebrow="Organization · Auth"
+      action={
+        <MetaPill>
+          {status?.auth?.mode === "protected" ? "Protected workspace" : "Anonymous session"}
+        </MetaPill>
+      }
     >
       <div className="settings-stack">
         <section className="surface settings-section">
           <div className="section-head">
             <div>
-              <h2>Organization</h2>
+              <h2>Workspace auth</h2>
               <p>
-                Tenant {status?.tenantId ?? "—"} · session cookie workspace. Connect keys on
-                Integrations.
+                Default is an anonymous signed cookie. Protect with a recovery key to sign out and
+                sign in later at <Link to="/login">/login</Link>.
               </p>
+            </div>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+            Tenant {status?.tenantId ?? "—"} · mode{" "}
+            <strong>{status?.auth?.mode ?? "anonymous"}</strong>
+          </p>
+          {recoveryReveal && (
+            <div className="byok-curl" style={{ marginTop: 12 }}>
+              <small>Copy now — we only store a hash. This key signs you back in.</small>
+              <code>{recoveryReveal}</code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(recoveryReveal).then(
+                    () => toast.success("Recovery key copied"),
+                    () => toast.error("Clipboard blocked"),
+                  );
+                }}
+              >
+                Copy recovery key
+              </Button>
+            </div>
+          )}
+          <div className="byok-actions" style={{ marginTop: "1rem" }}>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const bytes = new Uint8Array(24);
+                    crypto.getRandomValues(bytes);
+                    const key = `prf_ws_${Array.from(bytes, (b) =>
+                      b.toString(16).padStart(2, "0"),
+                    ).join("")}`;
+                    const res = await protectWorkspaceFn({ data: { recoveryKey: key } });
+                    if (!res.ok) throw new Error(res.message);
+                    setRecoveryReveal(key);
+                    toast.success(res.message);
+                    await refresh();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              {status?.auth?.mode === "protected" ? "Rotate recovery key" : "Protect workspace"}
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/login">Sign in</Link>
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const res = await signOutWorkspaceFn();
+                    if (!res.ok) throw new Error(res.message);
+                    toast.success(res.message);
+                    window.location.href = "/login";
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
+        </section>
+
+        <section className="surface settings-section">
+          <div className="section-head">
+            <div>
+              <h2>Organization</h2>
+              <p>Connect keys on Integrations. Label this tenant for receipts.</p>
             </div>
           </div>
           <div className="field-grid">
@@ -1428,6 +1539,7 @@ export function SettingsPage() {
                   try {
                     const res = await resetWorkspace();
                     if (!res.ok) throw new Error(res.message);
+                    setRecoveryReveal(null);
                     toast.success(res.message);
                     await refresh();
                   } catch (err) {
@@ -1438,7 +1550,7 @@ export function SettingsPage() {
                 })();
               }}
             >
-              Log out / new workspace
+              Destroy workspace
             </Button>
           </div>
         </section>

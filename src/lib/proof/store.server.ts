@@ -3,8 +3,10 @@ import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server
 import { getProofEnvStatus, getSessionSecret, ProofConfigError } from "./env.server";
 import {
   hashToken,
+  hashWorkspaceKey,
   openSecret,
   sealSecret,
+  sessionIdFromWorkspaceKey,
   type ByokPublicStatus,
   type TenantByokSealed,
 } from "./secrets.server";
@@ -30,6 +32,8 @@ export type TenantData = {
   idempotency: Map<string, string>;
   /** AES-GCM sealed BYOK — never returned to the browser. */
   byok: TenantByokSealed;
+  /** Present when workspace was protected with a recovery key. */
+  recoveryHash?: string;
 };
 
 type StoreRoot = {
@@ -448,6 +452,94 @@ export function ensureAgentTenant(): TenantData {
   return data;
 }
 
-export function envStatus() {
-  return getProofEnvStatus();
+function issueSessionCookie(sessionId: string, secret: string): void {
+  setCookie(SESSION_COOKIE, packCookie(sessionId, secret), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: cookieSecure(),
+    path: "/",
+    maxAge: COOKIE_MAX_AGE,
+  });
+}
+
+function reindexAgentHash(data: TenantData): void {
+  if (!data.byok.agentApiKeyHash) return;
+  root().byAgentHash.set(data.byok.agentApiKeyHash, data.session.sessionId);
+}
+
+/**
+ * Protect current workspace with a recovery key (shown once to the user).
+ * Rebinds session id deterministically so /login can restore it later.
+ */
+export function protectWorkspace(data: TenantData, recoveryKey: string): TenantData {
+  const trimmed = recoveryKey.trim();
+  if (trimmed.length < 24) {
+    throw new ProofConfigError("Workspace recovery key must be at least 24 characters.");
+  }
+  const secret = getSessionSecret();
+  const targetId = sessionIdFromWorkspaceKey(trimmed, secret);
+  const store = root();
+  const hash = hashWorkspaceKey(trimmed);
+
+  if (data.session.sessionId !== targetId) {
+    store.bySession.delete(data.session.sessionId);
+    data.session.sessionId = targetId;
+    data.session.tenantId = `ten_${targetId.slice(0, 12)}`;
+    store.bySession.set(targetId, data);
+  }
+
+  data.recoveryHash = hash;
+  data.session.lastSeenAt = new Date().toISOString();
+  reindexAgentHash(data);
+  issueSessionCookie(targetId, secret);
+  persistByokCookie(data);
+  return data;
+}
+
+/**
+ * Sign in with recovery key → attach session cookie to that workspace.
+ * Creates an empty protected tenant if this instance has never seen the key.
+ */
+export function signInWithRecoveryKey(recoveryKey: string): TenantData {
+  const trimmed = recoveryKey.trim();
+  if (trimmed.length < 24) {
+    throw new ProofConfigError("Workspace recovery key must be at least 24 characters.");
+  }
+  const secret = getSessionSecret();
+  const sessionId = sessionIdFromWorkspaceKey(trimmed, secret);
+  const hash = hashWorkspaceKey(trimmed);
+  const store = root();
+  let data = store.bySession.get(sessionId);
+  if (!data) {
+    data = newTenant(sessionId);
+    data.recoveryHash = hash;
+    store.bySession.set(sessionId, data);
+  } else if (data.recoveryHash && data.recoveryHash !== hash) {
+    throw new ProofConfigError("Recovery key does not match this workspace.");
+  } else {
+    data.recoveryHash = hash;
+  }
+  data.session.lastSeenAt = new Date().toISOString();
+  restoreByokFromCookie(data, secret);
+  reindexAgentHash(data);
+  issueSessionCookie(sessionId, secret);
+  persistByokCookie(data);
+  return data;
+}
+
+/** Clear browser session cookies without destroying in-memory workspace (sign out). */
+export function signOutWorkspace(): void {
+  deleteCookie(SESSION_COOKIE, { path: "/" });
+  deleteCookie(BYOK_COOKIE, { path: "/" });
+}
+
+export function authPublicStatus(data: TenantData | null): {
+  mode: "anonymous" | "protected";
+  signedIn: boolean;
+} {
+  if (!data) return { mode: "anonymous", signedIn: false };
+  return {
+    mode: data.recoveryHash ? "protected" : "anonymous",
+    signedIn: true,
+  };
 }

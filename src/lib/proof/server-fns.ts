@@ -5,17 +5,21 @@ import { runEvaluateSpine } from "./evaluate.server";
 import { checkRateLimit } from "./rate-limit.server";
 import { reviewPolicyWithServ } from "./serv.server";
 import {
+  authPublicStatus,
   clearTenantAgentKey,
   clearTenantCdp,
   clearTenantServKey,
   ensureTenantSession,
   getByokPublicStatus,
   listReceipts,
+  protectWorkspace,
   resetTenantSession,
   resolveServApiKey,
   saveTenantAgentKey,
   saveTenantCdp,
   saveTenantServKey,
+  signInWithRecoveryKey,
+  signOutWorkspace,
   spentTodayUsd,
   tryEnsureTenantSession,
   updatePolicy,
@@ -49,6 +53,7 @@ export const getIntegrationStatus = createServerFn({ method: "GET" }).handler(as
         spenderAddress: process.env['CDP_EVM_ADDRESS']?.trim() || null,
         servHint: null,
       };
+  const auth = authPublicStatus(session.ok ? session.data : null);
   return {
     env,
     sessionReady: session.ok,
@@ -60,10 +65,11 @@ export const getIntegrationStatus = createServerFn({ method: "GET" }).handler(as
     spentTodayUsd: spent,
     agentApiConfigured: byok.agentApi !== "none",
     byok,
+    auth,
     servTools: ["serv_prompt_guard", "serv_shadow_agent"],
     cdpRail: "Bearer JWT + X-Wallet-Auth · CDP REST send/transaction (jose + viem)",
     honesty:
-      "Base Sepolia testnet only. Not financial advice. No unhackable claims. Missing secrets fail closed — no mock transfers. Tenant BYOK keys are AES-GCM sealed and mirrored in a signed httpOnly cookie so cold starts keep your connections. TRANSFER_FAILED / CONFIG_REQUIRED do not burn idempotency (retry OK). Receipt/idempotency maps are still per-instance memory (honest limit).",
+      "Base Sepolia testnet only. Not financial advice. No unhackable claims. Auth: anonymous httpOnly session by default; protect with a workspace recovery key to sign out and sign in later (/login). BYOK AES-GCM sealed + signed cookie. TRANSFER_FAILED/CONFIG_REQUIRED do not burn idempotency. Receipt maps are per-instance memory (honest limit).",
   };
 });
 
@@ -254,7 +260,56 @@ export const resetWorkspace = createServerFn({ method: "POST" }).handler(async (
       ok: true as const,
       tenantId: tenant.session.tenantId,
       byok: getByokPublicStatus(tenant),
-      message: "New workspace session issued. Prior receipts and BYOK for this cookie are gone.",
+      auth: authPublicStatus(tenant),
+      message: "Destroyed prior workspace cookie and issued a fresh anonymous session.",
+    };
+  } catch (error) {
+    return toClientError(error);
+  }
+});
+
+export const protectWorkspaceFn = createServerFn({ method: "POST" })
+  .validator(z.object({ recoveryKey: z.string().min(24).max(200) }))
+  .handler(async ({ data }) => {
+    try {
+      const tenant = ensureTenantSession();
+      const protectedTenant = protectWorkspace(tenant, data.recoveryKey);
+      return {
+        ok: true as const,
+        tenantId: protectedTenant.session.tenantId,
+        auth: authPublicStatus(protectedTenant),
+        byok: getByokPublicStatus(protectedTenant),
+        message:
+          "Workspace protected. Save the recovery key — it is the only way to sign back in. We store a hash only.",
+      };
+    } catch (error) {
+      return toClientError(error);
+    }
+  });
+
+export const signInWorkspace = createServerFn({ method: "POST" })
+  .validator(z.object({ recoveryKey: z.string().min(24).max(200) }))
+  .handler(async ({ data }) => {
+    try {
+      const tenant = signInWithRecoveryKey(data.recoveryKey);
+      return {
+        ok: true as const,
+        tenantId: tenant.session.tenantId,
+        auth: authPublicStatus(tenant),
+        byok: getByokPublicStatus(tenant),
+        message: "Signed in. Session cookie attached to your protected workspace.",
+      };
+    } catch (error) {
+      return toClientError(error);
+    }
+  });
+
+export const signOutWorkspaceFn = createServerFn({ method: "POST" }).handler(async () => {
+  try {
+    signOutWorkspace();
+    return {
+      ok: true as const,
+      message: "Signed out. Cookies cleared — use /login with your recovery key to return.",
     };
   } catch (error) {
     return toClientError(error);

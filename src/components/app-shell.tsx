@@ -22,6 +22,7 @@ const items = [
   { to: "/analytics" as const, label: "Analytics", icon: BarChart3 },
   { to: "/integrations" as const, label: "Integrations", icon: Cable },
   { to: "/settings" as const, label: "Settings", icon: Settings },
+  { to: "/login" as const, label: "Sign in", icon: ShieldCheck },
 ];
 
 export function AppShell({

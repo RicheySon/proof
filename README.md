@@ -124,38 +124,19 @@ sequenceDiagram
 - Same idempotency key → fresh **DENY · REPLAY** receipt (we used to wrongly re-show the prior ALLOW — fixed).
 - Allowlist is **exact** `0x` + 40 hex. Prefix / substring tricks fail.
 
-### 4. Multi-tenant safety + BYOK access model
+### 4. Multi-tenant safety + BYOK + workspace auth
 
 | Layer | Mechanism | Access rule |
 | :--- | :--- | :--- |
 | Browser workspace | HMAC-signed `proof_session` httpOnly cookie | Receipts/policies isolated per session |
+| **Workspace auth** | Recovery key → deterministic session id (`HMAC(SESSION_SECRET, key)`) | Protect in Settings → **Sign out** → **`/login`** to return. Hash only stored. Not email/OAuth. |
 | Tenant BYOK | AES-256-GCM sealed with `SESSION_SECRET` | SERV / CDP secrets never returned to client |
 | Agent HTTP | SHA-256 of Bearer → tenant map | Your agent key → your receipts; shared env key → `ten_agent_http` |
 | Rate limits | In-memory per tenant id | UI 40/min · agent 60/min (per-instance honesty) |
 | Spam | Honeypot + CSRF on evaluate UI | Silent drop if honeypot filled |
 | Consent | `proof_consent` | Analytics beacon only after Accept |
 
-```mermaid
-flowchart LR
-  subgraph Browser
-    Cookie[proof_session httpOnly]
-    UI[Gate / Integrations]
-  end
-  subgraph Server
-    Seal[AES-GCM BYOK]
-    Spine[evaluate spine]
-    Store[Tenant memory]
-  end
-  Cookie --> Store
-  UI -->|connect SERV/CDP/agent| Seal
-  Seal --> Store
-  UI --> Spine
-  Agent[Agent Bearer] -->|hash match| Store
-  Spine --> SERV
-  Spine -->|ALLOW| CDP
-```
-
-**How a judge tries their own stack:** open `/integrations` → paste SERV key → paste CDP id/secret/wallet/address → generate a ≥16-char agent Bearer → `curl` `/api/v1/evaluate` with that Bearer. Log out / new workspace on Settings or Integrations clears the cookie and sealed keys for that browser.
+**How a judge tries their own stack:** open the live demo → Settings → Protect workspace (copy recovery key) → Integrations → paste SERV/CDP → Generate agent Bearer → `curl` `/api/v1/evaluate`. Sign out, then `/login` with the recovery key to return to the same workspace id.
 
 ### 5. Bugs we found that were real (and fixed)
 
@@ -171,6 +152,7 @@ Highlights worth judging on:
 - **Shared agent tenant collision** — BYOK agent key hashes to an isolated workspace.
 - **TRANSFER_FAILED burned retries** — failed/missing CDP no longer locks the idempotency key.
 - **Cold start wiped BYOK** — sealed keys mirrored in signed `proof_byok_v1` cookie.
+- **No sign-in path** — recovery-key workspace auth (`/login`) so protect → sign out → return.
 
 ---
 
@@ -180,6 +162,7 @@ Highlights worth judging on:
 | :--- | :--- | :--- |
 | Desk UI | TanStack Start, React, Vite, TypeScript | Gate, receipts, policies, review, integrations, settings |
 | Sessions | Signed httpOnly cookies (HMAC) | Multi-tenant without localStorage receipts |
+| Auth | Workspace recovery key → deterministic session | Protect → sign out → `/login` (not email/OAuth) |
 | BYOK | AES-256-GCM + SHA-256 agent hashes | Bring-your-own SERV / CDP / agent Bearer |
 | Reasoning | OpenServ SERV OpenAI-compatible API | Multipath + Shadow + PromptGuard |
 | Spend rail | Coinbase CDP REST · Base Sepolia USDC | Transfer only after ALLOW |

@@ -156,3 +156,11 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - One-click Generate agent Bearer + copy curl on Integrations
 - `npm run test:idem` + pre-generated receipt id on CDP send
 - Flaws ledger + README updated
+
+## 2026-09-27 — Workspace auth path
+
+- Was: anonymous cookie only + “new workspace” destroy
+- Now: Settings → Protect workspace (recovery key) → Sign out → `/login` restores deterministic session
+- Agent Bearer auth unchanged for HTTP API
+- Honest: not OAuth/email; receipts still per-instance memory
+- `npm run test:auth`
