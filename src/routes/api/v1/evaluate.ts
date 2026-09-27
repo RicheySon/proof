@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProofConfigError } from "@/lib/proof/env.server";
 import { runEvaluateSpine } from "@/lib/proof/evaluate.server";
+import { checkRateLimit } from "@/lib/proof/rate-limit.server";
 import { ensureAgentTenant } from "@/lib/proof/store.server";
 import { EvaluateInputSchema } from "@/lib/proof/types";
 
 /**
  * Agent-callable evaluate endpoint.
  * Auth: Authorization: Bearer $PROOF_AGENT_API_KEY (server-only).
- * Same fail-closed spine as the Gate UI.
  */
 export const Route = createFileRoute("/api/v1/evaluate")({
   server: {
@@ -32,6 +32,18 @@ export const Route = createFileRoute("/api/v1/evaluate")({
             return Response.json(
               { ok: false, code: "UNAUTHORIZED", message: "Invalid or missing Bearer token." },
               { status: 401 },
+            );
+          }
+
+          const limited = checkRateLimit(`agent:${token.slice(0, 12)}`, 60, 60_000);
+          if (!limited.ok) {
+            return Response.json(
+              {
+                ok: false,
+                code: "RATE_LIMITED",
+                message: `Too many requests. Retry in ${limited.retryAfterSec}s.`,
+              },
+              { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } },
             );
           }
 

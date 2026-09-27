@@ -115,3 +115,16 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - Integrations network matrix + Basescan links + Load replay preset
 - Folio-format README with mermaid diagrams; Quantum template removed
 - [`FLAWS_AND_WORKAROUNDS.md`](FLAWS_AND_WORKAROUNDS.md) ledger
+
+## 2026-09-27 — Launch checklist (20)
+
+### Shipped
+
+- `/privacy` + `/terms` (LegalShell)
+- `vercel.json` HSTS / nosniff / referrer / frame / permissions
+- Cookie consent + opt-in first-party `/api/v1/analytics` (+ optional Plausible domain)
+- OG `/og.png`, favicon set, `/sitemap.xml`, robots Sitemap line
+- Compressed seal mark (~9KB), alt/aria polish, muted-foreground AA, mobile CTA
+- Custom 404 → gate + home; form validation + honeypot; evaluate rate limit
+- Single CTA: landing/nav → `/gate`
+- [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md) + `npm run check:launch`

@@ -14,9 +14,12 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as GateRouteImport } from './routes/gate'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as PoliciesRouteImport } from './routes/policies'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReceiptsRouteImport } from './routes/receipts'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiV1AnalyticsRouteImport } from './routes/api/v1/analytics'
 import { Route as ApiV1EvaluateRouteImport } from './routes/api/v1/evaluate'
 
 const IndexRoute = IndexRouteImport.update({
@@ -44,6 +47,11 @@ const PoliciesRoute = PoliciesRouteImport.update({
   path: '/policies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceiptsRoute = ReceiptsRouteImport.update({
   id: '/receipts',
   path: '/receipts',
@@ -59,6 +67,16 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1AnalyticsRoute = ApiV1AnalyticsRouteImport.update({
+  id: '/api/v1/analytics',
+  path: '/api/v1/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1EvaluateRoute = ApiV1EvaluateRouteImport.update({
   id: '/api/v1/evaluate',
   path: '/api/v1/evaluate',
@@ -71,9 +89,12 @@ export interface FileRoutesByFullPath {
   '/gate': typeof GateRoute
   '/integrations': typeof IntegrationsRoute
   '/policies': typeof PoliciesRoute
+  '/privacy': typeof PrivacyRoute
   '/receipts': typeof ReceiptsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
+  '/api/v1/analytics': typeof ApiV1AnalyticsRoute
   '/api/v1/evaluate': typeof ApiV1EvaluateRoute
 }
 export interface FileRoutesByTo {
@@ -82,9 +103,12 @@ export interface FileRoutesByTo {
   '/gate': typeof GateRoute
   '/integrations': typeof IntegrationsRoute
   '/policies': typeof PoliciesRoute
+  '/privacy': typeof PrivacyRoute
   '/receipts': typeof ReceiptsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
+  '/api/v1/analytics': typeof ApiV1AnalyticsRoute
   '/api/v1/evaluate': typeof ApiV1EvaluateRoute
 }
 export interface FileRoutesById {
@@ -94,9 +118,12 @@ export interface FileRoutesById {
   '/gate': typeof GateRoute
   '/integrations': typeof IntegrationsRoute
   '/policies': typeof PoliciesRoute
+  '/privacy': typeof PrivacyRoute
   '/receipts': typeof ReceiptsRoute
   '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
+  '/api/v1/analytics': typeof ApiV1AnalyticsRoute
   '/api/v1/evaluate': typeof ApiV1EvaluateRoute
 }
 export interface FileRouteTypes {
@@ -107,9 +134,12 @@ export interface FileRouteTypes {
     | '/gate'
     | '/integrations'
     | '/policies'
+    | '/privacy'
     | '/receipts'
     | '/review'
     | '/settings'
+    | '/terms'
+    | '/api/v1/analytics'
     | '/api/v1/evaluate'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -118,9 +148,12 @@ export interface FileRouteTypes {
     | '/gate'
     | '/integrations'
     | '/policies'
+    | '/privacy'
     | '/receipts'
     | '/review'
     | '/settings'
+    | '/terms'
+    | '/api/v1/analytics'
     | '/api/v1/evaluate'
   id:
     | '__root__'
@@ -129,9 +162,12 @@ export interface FileRouteTypes {
     | '/gate'
     | '/integrations'
     | '/policies'
+    | '/privacy'
     | '/receipts'
     | '/review'
     | '/settings'
+    | '/terms'
+    | '/api/v1/analytics'
     | '/api/v1/evaluate'
   fileRoutesById: FileRoutesById
 }
@@ -141,9 +177,12 @@ export interface RootRouteChildren {
   GateRoute: typeof GateRoute
   IntegrationsRoute: typeof IntegrationsRoute
   PoliciesRoute: typeof PoliciesRoute
+  PrivacyRoute: typeof PrivacyRoute
   ReceiptsRoute: typeof ReceiptsRoute
   ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
+  TermsRoute: typeof TermsRoute
+  ApiV1AnalyticsRoute: typeof ApiV1AnalyticsRoute
   ApiV1EvaluateRoute: typeof ApiV1EvaluateRoute
 }
 
@@ -184,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PoliciesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/receipts': {
       id: '/receipts'
       path: '/receipts'
@@ -205,6 +251,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/analytics': {
+      id: '/api/v1/analytics'
+      path: '/api/v1/analytics'
+      fullPath: '/api/v1/analytics'
+      preLoaderRoute: typeof ApiV1AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/evaluate': {
       id: '/api/v1/evaluate'
       path: '/api/v1/evaluate'
@@ -221,9 +281,12 @@ const rootRouteChildren: RootRouteChildren = {
   GateRoute: GateRoute,
   IntegrationsRoute: IntegrationsRoute,
   PoliciesRoute: PoliciesRoute,
+  PrivacyRoute: PrivacyRoute,
   ReceiptsRoute: ReceiptsRoute,
   ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
+  TermsRoute: TermsRoute,
+  ApiV1AnalyticsRoute: ApiV1AnalyticsRoute,
   ApiV1EvaluateRoute: ApiV1EvaluateRoute,
 }
 export const routeTree = rootRouteImport

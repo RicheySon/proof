@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getProofEnvStatus, ProofConfigError } from "./env.server";
 import { runEvaluateSpine } from "./evaluate.server";
+import { checkRateLimit } from "./rate-limit.server";
 import { reviewPolicyWithServ } from "./serv.server";
 import {
   ensureTenantSession,
@@ -78,6 +79,14 @@ export const evaluateSpend = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     try {
       const tenant = ensureTenantSession();
+      const limited = checkRateLimit(`ui:${tenant.session.tenantId}`, 40, 60_000);
+      if (!limited.ok) {
+        return {
+          ok: false as const,
+          code: "RATE_LIMITED",
+          message: `Too many evaluates. Retry in ${limited.retryAfterSec}s.`,
+        };
+      }
       return await runEvaluateSpine(tenant, data);
     } catch (error) {
       return toClientError(error);

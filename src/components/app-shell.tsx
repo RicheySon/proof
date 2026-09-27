@@ -74,6 +74,10 @@ export function AppShell({
           {live ? "SERV configured" : "Awaiting SERV key"}
           <br />
           <small>Base Sepolia · Testnet · Fail-closed</small>
+          <br />
+          <small className="sidebar__legal">
+            <Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link>
+          </small>
         </div>
       </aside>
       {open && (

@@ -15,6 +15,7 @@
     "smoke:cdp-auth": "tsx --env-file=.env scripts/smoke-cdp-auth.ts",
     "smoke:full": "tsx --env-file=.env scripts/smoke-full-spine.ts",
     "setup:cdp": "tsx --env-file=.env scripts/setup-cdp-wallet.ts",
+    "check:launch": "tsx scripts/check-launch.ts",
     "typecheck": "tsc --noEmit"
   },
   "overrides": {

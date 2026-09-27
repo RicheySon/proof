@@ -64,16 +64,28 @@ export function LandingPage() {
           size="icon"
           className="landing-nav__menu"
           aria-label="Toggle menu"
+          aria-expanded={menu}
           onClick={() => setMenu(!menu)}
         >
           {menu ? <XCircle /> : <MenuIcon />}
         </Button>
         {menu && (
           <div className="landing-nav__mobile">
-            <Link to="/gate">Product</Link>
-            <Link to="/policies">Policies</Link>
-            <Link to="/review">Review</Link>
-            <Link to="/integrations">Integrations</Link>
+            <Link to="/gate" onClick={() => setMenu(false)}>
+              Product
+            </Link>
+            <Link to="/policies" onClick={() => setMenu(false)}>
+              Policies
+            </Link>
+            <Link to="/review" onClick={() => setMenu(false)}>
+              Review
+            </Link>
+            <Link to="/integrations" onClick={() => setMenu(false)}>
+              Integrations
+            </Link>
+            <Link to="/gate" className="landing-nav__mobile-cta" onClick={() => setMenu(false)}>
+              Run the gate
+            </Link>
           </div>
         )}
       </nav>
@@ -99,7 +111,16 @@ export function LandingPage() {
         </div>
       </section>
       <section className="landing-band" aria-label="PROOF decision demonstration">
-        <video autoPlay muted loop playsInline src={video} poster={poster} />
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          src={video}
+          poster={poster}
+          aria-label="Demonstration of a DENY receipt when a spend exceeds the policy cap"
+        />
         <div className="landing-receipt">
           <div className="receipt-head">
             <div>
@@ -151,6 +172,13 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+      <footer className="site-footer">
+        <Link to="/">PROOF</Link>
+        <Link to="/privacy">Privacy</Link>
+        <Link to="/terms">Terms</Link>
+        <Link to="/gate">Run the gate</Link>
+        <span>Base Sepolia · Not financial advice</span>
+      </footer>
     </div>
   );
 }
@@ -167,6 +195,8 @@ export function GatePage() {
   const [recipient, setRecipient] = useState(demoDenyAddress);
   const [intent, setIntent] = useState("Pay contractor for completed design sprint");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [honeypot, setHoneypot] = useState("");
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [lastAllowKey, setLastAllowKey] = useState<string | null>(null);
   const [phase, setPhase] = useState<GatePhase>("form");
   const [decision, setDecision] = useState<Decision>("DENY");
@@ -211,12 +241,39 @@ export function GatePage() {
   const runEvaluate = async () => {
     setPhase("evaluating");
     setError(null);
+    setFieldError(null);
+    if (honeypot.trim()) {
+      setPhase("error");
+      setError("Request blocked.");
+      return;
+    }
+    const amountUsd = Number(amount);
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      setPhase("form");
+      setFieldError("Enter a positive USDC amount.");
+      return;
+    }
+    if (!intent.trim() || intent.trim().length < 3) {
+      setPhase("form");
+      setFieldError("Intent must be at least 3 characters.");
+      return;
+    }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(recipient.trim())) {
+      setPhase("form");
+      setFieldError("Recipient must be a full 0x address (40 hex chars).");
+      return;
+    }
+    if (idempotencyKey.trim().length < 8) {
+      setPhase("form");
+      setFieldError("Idempotency key must be at least 8 characters.");
+      return;
+    }
     try {
       const result = await evaluate({
-        amountUsd: Number(amount),
-        recipient,
-        intent,
-        idempotencyKey,
+        amountUsd,
+        recipient: recipient.trim(),
+        intent: intent.trim(),
+        idempotencyKey: idempotencyKey.trim(),
       });
       if (!result.ok) {
         setPhase("error");
@@ -230,7 +287,7 @@ export function GatePage() {
       setTxHash(result.receipt.txHash);
       setPhase("result");
       if (result.receipt.decision === "ALLOW" && !result.replayed) {
-        setLastAllowKey(idempotencyKey);
+        setLastAllowKey(idempotencyKey.trim());
       }
       if (result.replayed) toast.message("Replay blocked — DENY · REPLAY");
     } catch (err) {
@@ -290,6 +347,21 @@ export function GatePage() {
             <span>Idempotency key (blocks replay)</span>
             <input value={idempotencyKey} onChange={(e) => setIdempotencyKey(e.target.value)} />
           </label>
+          <label className="hp-field" aria-hidden="true">
+            <span>Company website</span>
+            <input
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </label>
+          {fieldError && (
+            <div className="result-callout is-deny">
+              <strong>Check the form</strong>
+              <p>{fieldError}</p>
+            </div>
+          )}
           <div className="policy-preview">
             <ShieldCheck />
             <div>
@@ -305,7 +377,10 @@ export function GatePage() {
           {!servReady && (
             <div className="result-callout is-deny">
               <strong>Connection required</strong>
-              <p>Set SERV_API_KEY to evaluate. Fail-closed — no simulated ALLOW.</p>
+              <p>
+                SERV is not configured on this deployment. Fail-closed — no simulated ALLOW until
+                the operator sets the server key.
+              </p>
             </div>
           )}
           <Button
@@ -948,7 +1023,7 @@ export function IntegrationsPage() {
     {
       name: "Tenant session",
       desc: "Signed httpOnly cookie. No localStorage receipts.",
-      status: session ? "Ready" : "SESSION_SECRET required",
+      status: session ? "Ready" : "Session secret required",
       tone: session ? "live" : "need",
       icon: <LockKeyhole />,
     },
@@ -1181,7 +1256,7 @@ export function ReviewPage() {
           {!servReady && (
             <div className="result-callout is-deny">
               <strong>Connection required</strong>
-              <p>Add SERV_API_KEY. Reviewer will not invent findings.</p>
+              <p>SERV is not configured. Reviewer will not invent findings.</p>
             </div>
           )}
           {phase === "error" && error && (
