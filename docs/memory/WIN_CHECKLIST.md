@@ -25,10 +25,13 @@
 ## Submit (official — human)
 
 - [x] Keys + Vercel live (SERV + CDP + SESSION_SECRET)
+- [ ] **Make GitHub repo PUBLIC** — currently private (blocking for judges)
 - [ ] console.openserv.ai org **data collection ON** — https://console.openserv.ai/settings/organization
 - [ ] Public X post: name, concept, images, github/demo, tag **@openservai**
-- [ ] Fill official form after the post — start from https://www.openserv.ai/hackathon
+- [ ] Fill official form after the post — https://form.typeform.com/to/A475N331 (from https://www.openserv.ai/hackathon)
 - [ ] Deadline: **28 Sep 2026 00:00 UTC**
+
+Full copy-paste kit: [`SUBMIT_KIT.md`](SUBMIT_KIT.md)
 
 ## Pitch order
 
