@@ -24,7 +24,13 @@ Without this you are not eligible (official FAQ).
 
 ## 2) Post on X (required before the form)
 
-Attach 2–4 images from the live app (landing, gate DENY, ALLOW+Basescan, Integrations). Tag **@openservai**.
+Attach 2–4 images **and/or the demo video**. Tag **@openservai**.
+
+### Demo video + script
+
+- Full ~2:00 cut (title + live Deny→Allow→Replay + end card): use artifact `proof_2min_demo_narrated_cut.mp4`
+- Punchy raw capture (~1:00): `proof_2min_demo_deny_allow_replay.mp4`
+- Speak this over the cut: [`DEMO_SCRIPT_2MIN.md`](DEMO_SCRIPT_2MIN.md)
 
 ### Copy-paste post
 
