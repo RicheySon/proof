@@ -77,3 +77,18 @@ Four CDP env vars + funded Base Sepolia address (see CDP_SETUP).
 - Pushed secrets to Production / Preview / Development (names only logged)
 - Production deploy READY: https://proof-smoky.vercel.app
 - Inspect: https://vercel.com/teamtitanlink/proof
+
+## 2026-09-27 — CDP Wallet Secret + live Base Sepolia transfer
+
+### CDP bootstrap
+- Wallet Secret wired (gitignored `.env` + Vercel)
+- Created accounts: `proof-spender` `0xE4489256De809eE14BFEbD30461Ea47075f3e2FA`, `proof-payee` `0xE2891FC6511652EE73A8B7Acda66e7a3fFA24b3C`
+- Faucet ETH + USDC on Base Sepolia (faucet unit ≈ $1 USDC → demo ALLOW preset is **$1**)
+- Policy allowlist + Gate presets updated to full payee address (required for CDP send)
+
+### Full spine smoke (`npm run smoke:full`)
+- DENY $50 → SERV DENY + code gate `OVER_CAP`
+- ALLOW $1 → SERV ALLOW + code gate `POLICY_ALLOW` + **live tx**  
+  `0xd38a39f60caf2854d5bfe6dc87098fe58c289ca00024f10f17c5cb2fab6743f3`
+- REPLAY → `REPLAY` DENY
+- `smoke_full_spine_ok`

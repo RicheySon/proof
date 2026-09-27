@@ -46,6 +46,8 @@ export const getIntegrationStatus = createServerFn({ method: "GET" }).handler(as
     env,
     sessionReady: session.ok,
     sessionError: session.ok ? null : session.error.message,
+    demoPayee: process.env.PROOF_DEMO_PAYEE?.trim() || null,
+    spenderAddress: process.env.CDP_EVM_ADDRESS?.trim() || null,
     honesty:
       "Base Sepolia testnet only. Not financial advice. No unhackable claims. Missing secrets fail closed — no mock transfers.",
   };

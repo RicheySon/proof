@@ -2,42 +2,28 @@
 
 **Never commit secret values.** Walkthroughs: [`KEYS_SETUP.md`](KEYS_SETUP.md) · [`CDP_SETUP.md`](CDP_SETUP.md) · [`AGENTROUTER_SETUP.md`](AGENTROUTER_SETUP.md).
 
-Updated: 2026-09-27 (live smokes; values only in gitignored `.env` / Vercel Secrets).
+Updated: 2026-09-27 — **full spine live** (SERV DENY → ALLOW+CDP tx → REPLAY).
 
 | Variable | Required for | Status |
 |----------|--------------|--------|
-| `SESSION_SECRET` | Signed tenant cookies | **SET** locally + Vercel (prod/preview/dev) |
-| `SERV_API_KEY` | Evaluate + Review | **SET** locally + Vercel — live multipath OK |
-| `SERV_MODEL` | Default `gpt-5.4-mini-serv-multipath` | **SET** on Vercel |
-| `SERV_BASE_URL` | Default `https://inference-api.openserv.ai/v1` | **SET** on Vercel |
-| `CDP_API_KEY_ID` | CDP auth | **SET** locally + Vercel — JWT → `GET /evm/accounts` 200 |
-| `CDP_API_KEY_SECRET` | CDP auth | **SET** locally + Vercel (Ed25519 from portal JSON) |
-| `CDP_WALLET_SECRET` | Wallet JWT (`X-Wallet-Auth`) | **MISSING** — portal Non-custodial → Security → Generate |
-| `CDP_EVM_ADDRESS` | Funded Base Sepolia `0x` account | **MISSING** — create after Wallet Secret; accounts list currently `[]` |
-| `PROOF_NETWORK` | Default `base-sepolia` | **SET** on Vercel |
-| `TINYFISH_API_KEY` | Optional research | **SET** locally + Vercel |
-| `TAVILY_API_KEY` | Optional research | **SET** locally + Vercel |
-| `AGENTROUTER_API_KEY` | Optional backup LLM | **SET** locally + Vercel — Tor required on cloud IPs |
+| `SESSION_SECRET` | Signed tenant cookies | **SET** locally + Vercel |
+| `SERV_API_KEY` | Evaluate + Review | **SET** locally + Vercel |
+| `SERV_MODEL` / `SERV_BASE_URL` | SERV defaults | **SET** on Vercel |
+| `CDP_API_KEY_ID` | CDP auth | **SET** locally + Vercel |
+| `CDP_API_KEY_SECRET` | CDP auth | **SET** locally + Vercel |
+| `CDP_WALLET_SECRET` | Wallet JWT | **SET** locally + Vercel |
+| `CDP_EVM_ADDRESS` | Spender (funded) | **SET** — `0xE448…e2FA` (proof-spender) |
+| `PROOF_DEMO_PAYEE` | Allowlisted payee | **SET** — `0xE289…4b3C` (proof-payee, public) |
+| `PROOF_NETWORK` | `base-sepolia` | **SET** |
+| TinyFish / Tavily / AgentRouter | Optional | **SET** (AgentRouter needs Tor on cloud) |
 
-## Behavior without keys
-- Evaluate / Review without `SERV_API_KEY` → `CONFIG_REQUIRED` (no mock decision)
-- Transfer without CDP wallet secret / address → `CONFIG_REQUIRED` (no fake hash)
-- UI shows “connection required” / “Key required” — never green Connected unless secrets present
-
-## Live smoke notes (no secret values)
-| Provider | Result |
-|----------|--------|
-| SERV `/v1/models` | OK |
-| SERV multipath DENY/ALLOW/review | OK (`npm run smoke:serv`) |
-| Tavily search | OK |
-| TinyFish wallet + search | OK |
-| AgentRouter direct | Aliyun WAF HTML |
-| AgentRouter + Tor SOCKS | OK (`deepseek-v4-flash`) |
-| CDP Secret API Key | OK (Ed25519 JWT; empty accounts until Wallet Secret) |
-| CDP Wallet Secret / EVM | Pending operator portal step |
+## Live smoke (2026-09-27)
+- `npm run smoke:full` → `smoke_full_spine_ok`
+- DENY `$50` OVER_CAP (no tx)
+- ALLOW `$1` → live Base Sepolia USDC tx  
+  https://sepolia.basescan.org/tx/0xd38a39f60caf2854d5bfe6dc87098fe58c289ca00024f10f17c5cb2fab6743f3
+- REPLAY gate blocks same intent
 
 ## Vercel
-- Project: `teamtitanlink/proof` (GitHub `henrysammarfo/proof` connected)
-- Production alias: https://proof-smoky.vercel.app
-- Env secrets pushed via CLI token (MCP still needsAuth / timed out)
-- Still need `CDP_WALLET_SECRET` + `CDP_EVM_ADDRESS` on Vercel after portal generate/create/faucet
+- https://proof-smoky.vercel.app
+- Project `teamtitanlink/proof` — all CDP + SERV secrets on prod/preview/dev

@@ -2,7 +2,7 @@
 
 ## Product
 - [ ] Soft one sentence: policy proof before money moves (incl. replay)
-- [ ] Demo &lt; 2 min: $50 DENY (no tx) → $2 ALLOW (Sepolia tx when CDP live)
+- [x] Demo &lt; 2 min: $50 DENY (no tx) → $1 ALLOW (Sepolia tx live) → replay DENY
 - [ ] Receipt shows: prompt version, shadow, tokens, latency, cost, rule fired, tx if any
 - [ ] Testnet labeled; not financial advice; no “unhackable”
 - [ ] Integrations: SERV/AgentKit honest status; IXS/RH parked

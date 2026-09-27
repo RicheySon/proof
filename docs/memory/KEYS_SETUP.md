@@ -112,7 +112,7 @@ npx vercel --prod
 
 1. Soft (one line): *Your agent cannot move money until SERV proves policy — including a second try of the same payment.*
 2. Open `/gate` → **Load $50 deny** → Prove → expect **DENY**, rule e.g. `OVER_CAP` / `PAYEE_NOT_ALLOWLISTED`, **no tx**.
-3. **Load $2 allow** (allowlisted recipient) → Prove → expect **ALLOW** → Base Sepolia tx on receipt.
+3. **Load $1 allow** (allowlisted recipient) → Prove → expect **ALLOW** → Base Sepolia tx on receipt.
 4. Re-run with the **same idempotency key** → **REPLAY** DENY.
 5. Open `/receipts` → show cost/latency/shadow/rule/tx.
 6. Honesty: Base Sepolia testnet · not financial advice · no “unhackable”.
@@ -127,7 +127,7 @@ Deadline: **28 Sep 2026 00:00 UTC** · X post tag **@openservai** · then the fo
 - [ ] `/integrations`: SERV Connected, CDP Connected, Tenant session Ready
 - [ ] `/gate` Evaluate enabled
 - [ ] $50 deny leaves **no** tx hash
-- [ ] $2 allow produces `0x…` 64-byte hash on receipt
+- [ ] $1 allow produces `0x…` 64-byte hash on receipt
 - [ ] Replay same idempotency key → DENY `REPLAY`
 - [ ] `/review` returns structured risks (not connection-required)
 - [ ] Vercel URL loads mobile + desktop without clipped landing receipt

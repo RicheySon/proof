@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { AppShell, MetaPill } from "./app-shell";
 import { ProofLogo } from "./proof-logo";
 import { Button } from "./ui/button";
-import { useProofDemo, shortAddress, type Decision } from "@/lib/proof-demo";
+import { useProofDemo, demoDenyAddress, demoPayeeAddress, type Decision } from "@/lib/proof-demo";
 import { reviewPolicy } from "@/lib/proof/server-fns";
 import type { Receipt, ReviewResult } from "@/lib/proof/types";
 import { DEFAULT_POLICY } from "@/lib/proof/types";
@@ -164,7 +164,7 @@ type GatePhase = "form" | "evaluating" | "result" | "error";
 export function GatePage() {
   const { evaluate, status, activePolicy } = useProofDemo();
   const [amount, setAmount] = useState("50");
-  const [recipient, setRecipient] = useState("0x7A91E204");
+  const [recipient, setRecipient] = useState(demoDenyAddress);
   const [intent, setIntent] = useState("Pay contractor for completed design sprint");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [phase, setPhase] = useState<GatePhase>("form");
@@ -183,8 +183,8 @@ export function GatePage() {
   const cdpReady = Boolean(status?.env.cdpConfigured);
 
   const loadPreset = (type: Decision) => {
-    setAmount(type === "ALLOW" ? "2" : "50");
-    setRecipient(type === "ALLOW" ? shortAddress : "0x7A91E204");
+    setAmount(type === "ALLOW" ? "1" : "50");
+    setRecipient(type === "ALLOW" ? demoPayeeAddress : demoDenyAddress);
     setIdempotencyKey(crypto.randomUUID());
     setPhase("form");
     setError(null);
@@ -245,7 +245,7 @@ export function GatePage() {
               <XCircle /> Load $50 deny
             </Button>
             <Button variant="outline" onClick={() => loadPreset("ALLOW")}>
-              <CheckCircle2 /> Load $2 allow
+              <CheckCircle2 /> Load $1 allow
             </Button>
           </div>
           <label className="field">

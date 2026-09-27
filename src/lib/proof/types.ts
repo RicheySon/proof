@@ -95,11 +95,12 @@ export type ReviewResult = z.infer<typeof ReviewResultSchema>;
 export const DEFAULT_POLICY: Policy = {
   id: "contractor-payouts",
   name: "Contractor payouts",
-  version: "1.4",
+  version: "1.5",
   maxAmountUsd: 5,
-  allowlist: ["0x2F8B91C0", "0x4C01B822"],
+  // Live Base Sepolia payee (CDP account proof-payee). Public address — safe to commit.
+  allowlist: ["0xE2891FC6511652EE73A8B7Acda66e7a3fFA24b3C"],
   abstainOnUncertainty: true,
-  promptVersion: "policy-v1.4",
+  promptVersion: "policy-v1.5",
 };
 
 /** Normalize addresses for allowlist compare (demo uses truncated forms). */

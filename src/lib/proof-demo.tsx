@@ -128,4 +128,9 @@ export function useProofDemo() {
   return context;
 }
 
-export const shortAddress = "0x2F8B91C0";
+/** Live Base Sepolia demo payee (full address required for CDP transfer). */
+export const demoPayeeAddress = "0xE2891FC6511652EE73A8B7Acda66e7a3fFA24b3C";
+/** Non-allowlisted full address for DENY preset. */
+export const demoDenyAddress = "0x00000000000000000000000000000000000000dE";
+/** @deprecated use demoPayeeAddress */
+export const shortAddress = demoPayeeAddress;

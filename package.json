@@ -13,6 +13,8 @@
     "test:gate": "tsx scripts/test-code-gate.ts",
     "smoke:serv": "tsx --env-file=.env scripts/smoke-serv.ts",
     "smoke:cdp-auth": "tsx --env-file=.env scripts/smoke-cdp-auth.ts",
+    "smoke:full": "tsx --env-file=.env scripts/smoke-full-spine.ts",
+    "setup:cdp": "tsx --env-file=.env scripts/setup-cdp-wallet.ts",
     "typecheck": "tsc --noEmit"
   },
   "overrides": {

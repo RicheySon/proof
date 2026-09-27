@@ -164,7 +164,7 @@ Vercel → Project → Settings → Environment Variables → **Production + Pre
 
 Sanity:
 1. Open `/integrations` → AgentKit/CDP shows **Connected** (not “Key required”).
-2. `/gate` → Load $2 allow (allowlisted payee) → Prove → receipt has real `0x` tx hash on Base Sepolia.
+2. `/gate` → Load $1 allow (allowlisted payee) → Prove → receipt has real `0x` tx hash on Base Sepolia.
 3. Deny / replay paths still produce **no** tx hash.
 
 If any CDP secret is missing, PROOF returns `CONFIG_REQUIRED` and never invents a hash.
